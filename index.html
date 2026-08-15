@@ -3,19 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#101B2D" />
-    <meta name="description" content="PJD Maker — marketplace pour vendeurs et acheteurs en Afrique." />
     <title>PJD Maker</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      window.storage = window.storage || {
-        get: async (key) => ({ value: localStorage.getItem(key) }),
-        set: async (key, value) => { localStorage.setItem(key, value); return { ok: true }; },
-        delete: async (key) => { localStorage.removeItem(key); return { ok: true }; }
-      };
-    </script>
   </head>
-  <body class="bg-[#F7F8FB]">
+  <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
