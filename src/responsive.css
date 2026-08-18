@@ -8,12 +8,16 @@
   --pjd-gutter: clamp(12px, 2.2vw, 32px);
   --pjd-radius: 14px;
   --pjd-touch: 44px;
+  --pjd-surface: #ffffff;
+  --pjd-surface-soft: #f7f8fb;
+  --pjd-shadow: 0 10px 30px rgba(16, 27, 45, .07);
+  --pjd-shadow-hover: 0 16px 40px rgba(16, 27, 45, .12);
 }
 
 *, *::before, *::after { box-sizing: border-box; }
 html, body, #root { width: 100%; min-width: 0; }
 html { overflow-x: hidden; -webkit-text-size-adjust: 100%; }
-body { margin: 0; overflow-x: hidden; }
+body { margin: 0; overflow-x: hidden; background: #f7f8fb; color: #101b2d; }
 #root { min-height: 100dvh; }
 
 img, svg, video, canvas { max-width: 100%; }
@@ -24,21 +28,15 @@ input, select, button { min-height: var(--pjd-touch); }
 textarea { min-height: 96px; }
 main, header, nav, section, article, aside { min-width: 0; }
 
-/* Text and media cannot force a wider viewport. */
-p, h1, h2, h3, h4, h5, h6, span, a, button, label {
-  overflow-wrap: anywhere;
-}
+p, h1, h2, h3, h4, h5, h6, span, a, button, label { overflow-wrap: anywhere; }
 
-/* Navigation / touch targets */
 header button, nav button, header a, nav a,
 [role="navigation"] button, [role="navigation"] a,
 [role="button"] { min-height: var(--pjd-touch); touch-action: manipulation; }
 
-/* Tables and charts stay inside their parent. */
 table { width: 100%; border-collapse: collapse; }
 .recharts-responsive-container { width: 100% !important; min-width: 0 !important; }
 
-/* Dialogs */
 [role="dialog"] {
   max-width: calc(100vw - 24px);
   max-height: calc(100dvh - 24px);
@@ -47,64 +45,188 @@ table { width: 100%; border-collapse: collapse; }
 }
 
 /* =========================================================
+   MARKETPLACE VISUAL SYSTEM
+   Keeps the existing PJD Maker orange + navy palette.
+   ========================================================= */
+
+/* Main surfaces become clean marketplace cards without recoloring them. */
+main .rounded-xl,
+main .rounded-2xl,
+main .rounded-3xl,
+main .rounded-lg {
+  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+
+main .rounded-xl[style*="background"],
+main .rounded-2xl[style*="background"],
+main .rounded-3xl[style*="background"] {
+  box-shadow: 0 1px 0 rgba(16,27,45,.03);
+}
+
+/* Product cards: premium marketplace behavior. */
+main .grid > .rounded-xl,
+main .grid > .rounded-2xl,
+main .grid > article,
+main .grid > [class*="shadow"] {
+  overflow: hidden;
+}
+
+main .grid > .rounded-xl:hover,
+main .grid > .rounded-2xl:hover,
+main .grid > article:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--pjd-shadow-hover);
+}
+
+/* Product media gets a consistent visual stage. */
+main .aspect-square,
+main .aspect-video {
+  background: #eef1f6;
+  overflow: hidden;
+}
+main .aspect-square img,
+main .aspect-video img {
+  transition: transform .35s ease;
+}
+main .group:hover .aspect-square img,
+main .group:hover .aspect-video img {
+  transform: scale(1.035);
+}
+
+/* Stronger hierarchy for marketplace prices and headings. */
+main h1 { letter-spacing: -.025em; }
+main h2 { letter-spacing: -.02em; }
+main h3 { letter-spacing: -.01em; }
+
+/* Buttons retain the existing palette but gain product-quality interaction. */
+main button {
+  transition: transform .16s ease, box-shadow .16s ease, opacity .16s ease, background-color .16s ease;
+}
+main button:not(:disabled):active { transform: translateY(1px); }
+main button:not(:disabled):hover { filter: brightness(.985); }
+
+/* Primary CTA buttons already use the PJD orange inline style. */
+main button[style*="#F9631A"],
+main button[style*="#f9631a"] {
+  box-shadow: 0 7px 18px rgba(249, 99, 26, .18);
+}
+
+/* Search becomes a marketplace focal point. */
+main input[type="search"],
+main input[placeholder*="Recher"],
+main input[placeholder*="recher"] {
+  border-radius: 14px !important;
+  background: #fff !important;
+  box-shadow: 0 3px 16px rgba(16,27,45,.05);
+  transition: box-shadow .2s ease, border-color .2s ease;
+}
+main input[type="search"]:focus,
+main input[placeholder*="Recher"]:focus,
+main input[placeholder*="recher"]:focus {
+  border-color: rgba(249,99,26,.55) !important;
+  box-shadow: 0 0 0 4px rgba(249,99,26,.10);
+}
+
+/* Form controls. */
+main input:not([type="checkbox"]):not([type="radio"]),
+main select,
+main textarea {
+  border-radius: 12px;
+  background: #fff;
+}
+
+/* Navigation / header should feel anchored and premium. */
+body > header,
+#root > header,
+#root header {
+  position: relative;
+  z-index: 30;
+}
+
+/* Badges and pills. */
+main .rounded-full {
+  line-height: 1.1;
+}
+
+/* Dashboard stat cards. */
+.pjd-dashboard .grid > *,
+.pjd-dashboard [class*="shadow"] {
+  border-color: #e3e6ec;
+}
+
+/* Tables: cleaner rows and mobile-friendly scrolling. */
+main table thead tr {
+  background: #f7f8fb;
+}
+main table th {
+  font-size: .72rem;
+  letter-spacing: .035em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+main table tbody tr {
+  border-bottom: 1px solid #edf0f4;
+}
+main table tbody tr:hover { background: #fafbfc; }
+
+/* Toasts / alerts should float above marketplace content. */
+[role="alert"] { z-index: 80; }
+
+/* =========================================================
    PHONE — 0 to 767px
    ========================================================= */
 @media (max-width: 767px) {
   body { font-size: 14px; }
   main { width: 100%; padding-left: 0; padding-right: 0; }
-
-  /* Home / storefront */
   main > *, main > section { width: 100%; max-width: 100%; min-width: 0; }
 
-  /* Header: compact and wrap safely. */
   header, header > div, header nav { max-width: 100%; min-width: 0; }
-  header nav { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  header nav { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  header nav::-webkit-scrollbar { display: none; }
 
-  /* Search */
   input[type="search"],
   input[placeholder*="Recher"],
   input[placeholder*="recher"] { width: 100%; }
 
-  /* Product/category grids */
+  /* Marketplace catalog: two compact cards rather than one oversized card. */
   .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .grid-cols-3, .grid-cols-4, .grid-cols-5, .grid-cols-6 {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  /* Authentication */
+  /* Avoid tiny product cards on narrow phones. */
+  main .grid-cols-2 > * { min-width: 0; }
+  main .grid-cols-2 { gap: 10px !important; }
+  main .grid-cols-2 h3 { font-size: .86rem; line-height: 1.25; }
+  main .grid-cols-2 .text-2xl { font-size: 1.05rem; }
+  main .grid-cols-2 .text-xl { font-size: 1rem; }
+
   form { width: 100%; max-width: 100%; }
   form button { width: 100%; }
 
-  /* Cart / checkout */
   .pjd-checkout .grid, .pjd-cart .grid,
   .pjd-dashboard .grid { grid-template-columns: 1fr !important; }
-
-  /* Dashboard cards */
   .pjd-dashboard { width: 100%; max-width: 100%; }
 
-  /* Orders / admin tables scroll inside the page. */
   .overflow-x-auto {
     max-width: 100%;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
   }
   .overflow-x-auto table { min-width: 640px; }
 
-  /* Action bars wrap. */
   .pjd-actions, .actions { flex-wrap: wrap; min-width: 0; }
   .pjd-actions > *, .actions > * { max-width: 100%; }
 
-  /* Chat area adapts to mobile viewport and keyboard. */
   .pjd-chat { min-height: min(72dvh, 680px); min-width: 0; }
   .pjd-chat form { position: sticky; bottom: 0; }
 
-  /* Reduce desktop Tailwind padding on narrow screens. */
   .p-8 { padding: 1rem !important; }
   .p-10 { padding: 1.25rem !important; }
   .px-8 { padding-left: 1rem !important; padding-right: 1rem !important; }
   .px-10 { padding-left: 1.25rem !important; padding-right: 1.25rem !important; }
 
-  /* Modal / drawer: nearly full-screen. */
   [role="dialog"] {
     width: calc(100vw - 16px) !important;
     max-width: none;
@@ -115,6 +237,13 @@ table { width: 100%; border-collapse: collapse; }
 
   .flex > * { min-width: 0; }
   .flex-nowrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  /* Touch-friendly product cards and CTA buttons. */
+  main .grid > * button { min-height: 44px; }
+  main .grid > * .p-5 { padding: .85rem !important; }
+
+  /* Mobile marketplace sections breathe without wasting screen space. */
+  main section { scroll-margin-top: 72px; }
 }
 
 /* =========================================================
@@ -127,6 +256,9 @@ table { width: 100%; border-collapse: collapse; }
   }
   h1 { font-size: clamp(1.35rem, 7vw, 2rem); }
   h2 { font-size: clamp(1.15rem, 6vw, 1.6rem); }
+
+  /* Prevent long product names/prices from breaking the card. */
+  main .grid-cols-2 > * { overflow: hidden; }
 }
 
 /* =========================================================
@@ -135,13 +267,10 @@ table { width: 100%; border-collapse: collapse; }
 @media (min-width: 768px) and (max-width: 1199px) {
   body { font-size: 15px; }
   main { width: 100%; padding-left: var(--pjd-gutter); padding-right: var(--pjd-gutter); }
-
-  /* Dense catalog grids become tablet-friendly. */
   .grid-cols-5, .grid-cols-6 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .pjd-dashboard .grid-cols-4,
   .pjd-dashboard .grid-cols-5,
   .pjd-dashboard .grid-cols-6 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-
   [role="dialog"] { width: min(720px, calc(100vw - 48px)); }
 }
 
@@ -157,6 +286,10 @@ table { width: 100%; border-collapse: collapse; }
     padding-right: var(--pjd-gutter);
   }
   .pjd-dashboard { max-width: var(--pjd-max); margin-inline: auto; }
+
+  /* Desktop marketplace: product grids use the available width gracefully. */
+  main .grid-cols-4 { column-gap: 20px; row-gap: 24px; }
+  main .grid-cols-3 { column-gap: 22px; row-gap: 26px; }
 }
 
 @media (min-width: 1600px) {
