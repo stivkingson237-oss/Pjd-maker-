@@ -1,125 +1,229 @@
-/* PJD Maker — Responsive system
-   Mobile-first: phones, tablets and desktop
+/* PJD Maker — responsive UX layer
+   Mobile first: phone / tablet / desktop
+   This file intentionally works with the existing React/Tailwind UI without
+   changing business logic or payment/authentication behavior.
 */
 
 :root {
-  --pjd-content-max: 1440px;
-  --pjd-gutter: clamp(12px, 2vw, 32px);
+  --pjd-max: 1440px;
+  --pjd-gutter: clamp(12px, 2.2vw, 32px);
+  --pjd-radius: 14px;
+  --pjd-touch: 44px;
 }
 
-html {
-  box-sizing: border-box;
-  width: 100%;
-  min-width: 0;
-  overflow-x: hidden;
+*, *::before, *::after { box-sizing: border-box; }
+html, body, #root { width: 100%; min-width: 0; }
+html { overflow-x: hidden; -webkit-text-size-adjust: 100%; }
+body { margin: 0; overflow-x: hidden; }
+
+img, svg, video, canvas { max-width: 100%; }
+img { height: auto; }
+button, input, select, textarea { font: inherit; }
+input, select, textarea { min-width: 0; }
+
+/* Global page shell */
+#root { min-height: 100dvh; }
+#root > div { min-width: 0; }
+main { width: 100%; min-width: 0; }
+
+/* Header / navigation */
+header, nav { min-width: 0; }
+header button, nav button,
+header a, nav a,
+[role="navigation"] button, [role="navigation"] a {
+  min-height: var(--pjd-touch);
 }
 
-*, *::before, *::after {
-  box-sizing: inherit;
-}
-
-body {
-  width: 100%;
-  min-width: 0;
-  margin: 0;
-  overflow-x: hidden;
-  -webkit-text-size-adjust: 100%;
-}
-
-img, svg, video, canvas {
-  max-width: 100%;
-}
-
-button, input, select, textarea {
-  max-width: 100%;
-  font: inherit;
-}
-
+/* Search bars and form controls */
 input, select, textarea {
+  max-width: 100%;
+}
+input, select {
+  min-height: var(--pjd-touch);
+}
+textarea { min-height: 96px; }
+
+/* Cards: prevent long product names/text from breaking layouts */
+[class*="rounded"],
+[class*="card"] {
   min-width: 0;
 }
 
-/* Prevent fixed-width cards/sections from breaking small screens. */
-[class*="container"], [class*="wrapper"], [class*="content"], main {
-  max-width: 100%;
+p, h1, h2, h3, h4, h5, h6, span, a, button, label {
+  overflow-wrap: anywhere;
 }
 
-/* Tables remain usable on phones without stretching the page. */
-table {
-  width: 100%;
-  border-collapse: collapse;
+/* Product/media areas */
+[class*="aspect-"], [class*="object-"] { min-width: 0; }
+
+/* Tables stay inside their section */
+table { width: 100%; border-collapse: collapse; }
+
+/* Charts must shrink instead of forcing horizontal scrolling */
+.recharts-responsive-container { width: 100% !important; min-width: 0 !important; }
+
+/* Dialogs / drawers */
+[role="dialog"] {
+  max-width: calc(100vw - 24px);
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
+/* =========================================================
+   PHONE — 0 to 767px
+   ========================================================= */
 @media (max-width: 767px) {
-  body {
-    font-size: 14px;
-  }
+  body { font-size: 14px; }
 
-  /* Common responsive layout patterns. */
-  .grid, [class*="grid"] {
-    grid-template-columns: minmax(0, 1fr) !important;
-  }
+  /* Screen 1: Home / storefront */
+  main { padding-left: 0; padding-right: 0; }
+  main > * { min-width: 0; }
 
-  .flex, [class*="flex"] {
-    min-width: 0;
-  }
-
-  /* Large horizontal rows become vertical on phones. */
-  .row, [class*="row"] {
-    flex-wrap: wrap;
-  }
-
-  /* Navigation/header controls can wrap instead of overflowing. */
-  header, nav {
+  /* Keep content readable and remove accidental desktop gutters */
+  .pjd-page,
+  .pjd-section,
+  main > section {
+    width: 100%;
     max-width: 100%;
   }
 
-  /* Make long controls touch-friendly. */
-  button, [role="button"] {
-    min-height: 40px;
+  /* Navigation becomes compact */
+  header { position: relative; }
+  header nav, header > div { min-width: 0; }
+  header .hidden { display: none; }
+
+  /* Search: full-width on phones */
+  input[type="search"],
+  input[placeholder*="Recher"],
+  input[placeholder*="recher"] {
+    width: 100%;
   }
 
-  /* Horizontal lists can scroll inside themselves, not the whole page. */
-  .overflow-x-auto, [class*="overflow-x-auto"] {
-    max-width: 100%;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
+  /* Screen 2: product/category grids — one comfortable column */
+  .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid-cols-3, .grid-cols-4, .grid-cols-5, .grid-cols-6 {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  /* Dialogs/modals fit the phone viewport. */
+  /* Small phones: category/product cards can use two columns */
+  @media (max-width: 430px) {
+    .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid-cols-3, .grid-cols-4, .grid-cols-5, .grid-cols-6 {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  /* Screen 3: authentication — single column and comfortable fields */
+  form { width: 100%; max-width: 100%; }
+  form button { width: 100%; }
+
+  /* Screen 4: cart / checkout — stack summary and payment blocks */
+  .pjd-checkout, .pjd-cart { width: 100%; }
+  .pjd-checkout .grid, .pjd-cart .grid { grid-template-columns: 1fr !important; }
+
+  /* Screen 5: dashboards — cards stack vertically */
+  .pjd-dashboard { width: 100%; }
+  .pjd-dashboard .grid { grid-template-columns: 1fr !important; }
+
+  /* Screen 6: tables/orders — horizontal scroll belongs to table wrapper */
+  .overflow-x-auto { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .overflow-x-auto table { min-width: 640px; }
+
+  /* Screen 7: seller/admin controls — buttons can wrap */
+  .pjd-actions, .actions { flex-wrap: wrap; }
+  .pjd-actions > *, .actions > * { max-width: 100%; }
+
+  /* Screen 8: chat — use viewport safely with mobile keyboard */
+  .pjd-chat { min-height: min(72dvh, 680px); }
+  .pjd-chat form { position: sticky; bottom: 0; }
+
+  /* Touch-friendly controls */
+  button, [role="button"], a { touch-action: manipulation; }
+  button { min-height: var(--pjd-touch); }
+
+  /* Avoid clipped rounded content on tiny screens */
+  .p-8 { padding: 1rem !important; }
+  .p-10 { padding: 1.25rem !important; }
+  .px-8 { padding-left: 1rem !important; padding-right: 1rem !important; }
+  .px-10 { padding-left: 1.25rem !important; padding-right: 1.25rem !important; }
+
+  /* Modal / drawer becomes almost full-screen */
   [role="dialog"] {
-    width: min(100% - 24px, 520px) !important;
-    max-height: calc(100dvh - 24px);
-    overflow-y: auto;
+    width: calc(100vw - 16px) !important;
+    max-width: none;
+    max-height: calc(100dvh - 16px);
+    margin: 8px;
+    border-radius: 16px;
   }
+
+  /* Prevent fixed-width flex children from overflowing */
+  .flex > * { min-width: 0; }
+  .flex-nowrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 }
 
+/* =========================================================
+   TABLET — 768 to 1199px
+   ========================================================= */
 @media (min-width: 768px) and (max-width: 1199px) {
-  body {
-    font-size: 15px;
-  }
+  body { font-size: 15px; }
 
-  /* Tablet: use two columns where a grid exists. */
-  .grid, [class*="grid"] {
+  main { padding-left: var(--pjd-gutter); padding-right: var(--pjd-gutter); }
+
+  /* Preserve deliberate Tailwind grid sizes but cap very dense layouts */
+  .grid-cols-5, .grid-cols-6 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+  .pjd-dashboard .grid-cols-4,
+  .pjd-dashboard .grid-cols-5,
+  .pjd-dashboard .grid-cols-6 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  [role="dialog"] { width: min(720px, calc(100vw - 48px)); }
 }
 
+/* =========================================================
+   DESKTOP — 1200px+
+   ========================================================= */
 @media (min-width: 1200px) {
-  /* Desktop: preserve readable content width. */
-  main, #root > div {
-    max-width: var(--pjd-content-max);
+  main {
+    width: min(100%, var(--pjd-max));
     margin-left: auto;
     margin-right: auto;
+    padding-left: var(--pjd-gutter);
+    padding-right: var(--pjd-gutter);
   }
+
+  /* Keep very wide dashboard cards readable */
+  .pjd-dashboard { max-width: var(--pjd-max); margin-inline: auto; }
 }
 
-/* Respect users who prefer less motion. */
+/* =========================================================
+   LARGE DESKTOP — 1600px+
+   ========================================================= */
+@media (min-width: 1600px) {
+  :root { --pjd-gutter: 40px; }
+}
+
+/* Keyboard focus / accessibility */
+:focus-visible {
+  outline: 3px solid rgba(249, 99, 26, .45);
+  outline-offset: 2px;
+}
+
+/* Respect reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     scroll-behavior: auto !important;
-    animation-duration: 0.01ms !important;
+    animation-duration: .01ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+    transition-duration: .01ms !important;
+  }
+}
+
+/* Safe-area support for modern phones */
+@supports (padding: env(safe-area-inset-bottom)) {
+  body {
+    padding-bottom: env(safe-area-inset-bottom);
   }
 }
