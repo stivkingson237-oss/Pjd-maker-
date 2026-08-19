@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Search, ShoppingCart, User, Menu, X, ChevronRight, Star, Heart, Download, ShieldCheck, Zap, Smartphone, BookOpen, Code2, GraduationCap, Palette, FileText, TrendingUp, Store, LogIn, LogOut, CreditCard, Loader2 } from 'lucide-react';
+import { Search, ShoppingCart, User, Menu, X, ChevronRight, Star, Heart, Download, ShieldCheck, Zap, Smartphone, BookOpen, Code2, GraduationCap, Palette, FileText, TrendingUp, Store, LogIn, LogOut, CreditCard, Loader2, Smartphone as MobilePay } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import './marketplace.css';
 
@@ -34,6 +34,7 @@ export default function MarketplaceShell() {
   const [session, setSession] = useState(null), [authOpen, setAuthOpen] = useState(false), [email, setEmail] = useState(''), [password, setPassword] = useState('');
   const [cart, setCart] = useState(() => JSON.parse(localStorage.getItem('pjd-cart') || '[]'));
   const [cartOpen, setCartOpen] = useState(false), [checkoutLoading, setCheckoutLoading] = useState(false), [authLoading, setAuthLoading] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState('monetbil');
   const nav = ['Accueil', 'Catalogue', 'Formations', 'Applications', 'E-books', 'Promotions'];
 
   useEffect(() => {
@@ -82,13 +83,20 @@ export default function MarketplaceShell() {
     if (!cart.length) return;
     setCheckoutLoading(true);
     try {
-      const { data: order, error: oe } = await supabase.from('orders').insert({ user_id: session.user.id, total, status: 'en_attente', payment_method: 'stripe' }).select('id').single();
+      const { data: order, error: oe } = await supabase.from('orders').insert({ user_id: session.user.id, total, status: 'en_attente', payment_method: paymentMethod }).select('id').single();
       if (oe) throw oe;
       const { error: ie } = await supabase.from('order_items').insert(cart.map(x => ({ order_id: order.id, product_id: x.product_id, name: x.name, price: x.price, quantity: x.quantity })));
       if (ie) throw ie;
-      const { data, error: pe } = await supabase.functions.invoke('stripe-checkout', { body: { orderId: order.id, currency: 'xof', customerEmail: session.user.email, successUrl: `${window.location.origin}/?payment=success&order=${order.id}`, cancelUrl: `${window.location.origin}/?payment=cancelled&order=${order.id}` } });
-      if (pe || data?.error) throw pe || new Error(data.error);
-      if (data?.url) window.location.href = data.url; else throw new Error('Lien de paiement indisponible.');
+
+      if (paymentMethod === 'monetbil') {
+        const { data, error: pe } = await supabase.functions.invoke('monetbil-checkout', { body: { orderId: order.id } });
+        if (pe || data?.error) throw pe || new Error(data.error);
+        if (data?.url) window.location.href = data.url; else throw new Error('Lien Monetbil indisponible.');
+      } else {
+        const { data, error: pe } = await supabase.functions.invoke('stripe-checkout', { body: { orderId: order.id, currency: 'xof', customerEmail: session.user.email, successUrl: `${window.location.origin}/?payment=success&order=${order.id}&method=stripe`, cancelUrl: `${window.location.origin}/?payment=cancelled&order=${order.id}&method=stripe` } });
+        if (pe || data?.error) throw pe || new Error(data.error);
+        if (data?.url) window.location.href = data.url; else throw new Error('Lien de paiement indisponible.');
+      }
     } catch (e) { alert(e.message || 'Paiement impossible.'); }
     finally { setCheckoutLoading(false); }
   }
@@ -113,7 +121,7 @@ export default function MarketplaceShell() {
       <section className="seller-cta"><div><span className="eyebrow">POUR LES CRÉATEURS</span><h2>Transformez vos compétences en revenus.</h2><p>Publiez vos produits numériques et développez votre boutique.</p><button className="primary">Commencer à vendre <ChevronRight size={18}/></button></div><div className="seller-stats"><div><strong>{products.length}</strong><span>Produits actifs</span></div><div><strong>24/7</strong><span>Boutique active</span></div><div><strong>100%</strong><span>Digital</span></div></div></section>
     </main> : <main><section className="page-title"><span className="eyebrow">MARKETPLACE</span><h1>{view}</h1><p>Les produits publiés dans votre base Supabase.</p></section><section className="catalog-layout"><aside className="filters"><b>Catégories</b>{categories.map(([,t]) => <button key={t} onClick={() => setSearch(t)}>{t}</button>)}</aside><div className="catalog-products"><div className="catalog-tools"><span>{visible.length} produits</span><button onClick={loadProducts}>Actualiser</button></div>{loading ? <div className="loading"><Loader2 className="spin"/> Chargement...</div> : <div className="products">{visible.map(p => <ProductCard key={p.id} p={p} onAdd={addToCart}/>)}</div>}</div></section></main>}
 
-    {cartOpen && <div className="modal-backdrop" onClick={() => setCartOpen(false)}><div className="cart-modal" onClick={e => e.stopPropagation()}><div className="modal-head"><h2>Votre panier</h2><button onClick={() => setCartOpen(false)}><X/></button></div>{cart.length ? <>{cart.map(x => <div className="cart-row" key={x.product_id}><div><b>{x.name}</b><small>{money(x.price)} × {x.quantity}</small></div><button onClick={() => setCart(cart.filter(i => i.product_id !== x.product_id))}>Supprimer</button></div>)}<div className="cart-total"><span>Total</span><strong>{money(total)}</strong></div><button className="primary checkout" onClick={checkout} disabled={checkoutLoading}>{checkoutLoading ? <><Loader2 className="spin"/> Préparation...</> : <><CreditCard/> Payer maintenant</>}</button></> : <div className="empty"><ShoppingCart/> Votre panier est vide.</div>}</div></div>}
+    {cartOpen && <div className="modal-backdrop" onClick={() => setCartOpen(false)}><div className="cart-modal" onClick={e => e.stopPropagation()}><div className="modal-head"><h2>Votre panier</h2><button onClick={() => setCartOpen(false)}><X/></button></div>{cart.length ? <>{cart.map(x => <div className="cart-row" key={x.product_id}><div><b>{x.name}</b><small>{money(x.price)} × {x.quantity}</small></div><button onClick={() => setCart(cart.filter(i => i.product_id !== x.product_id))}>Supprimer</button></div>)}<div className="cart-total"><span>Total</span><strong>{money(total)}</strong></div><div className="payment-choice"><b>Choisir le moyen de paiement</b><div className="payment-options"><button className={paymentMethod === 'monetbil' ? 'payment-option active' : 'payment-option'} onClick={() => setPaymentMethod('monetbil')}><MobilePay size={19}/><span><strong>Monetbil</strong><small>MTN MoMo · Orange Money</small></span></button><button className={paymentMethod === 'stripe' ? 'payment-option active' : 'payment-option'} onClick={() => setPaymentMethod('stripe')}><CreditCard size={19}/><span><strong>Carte / Stripe</strong><small>Paiement sécurisé</small></span></button></div></div><button className="primary checkout" onClick={checkout} disabled={checkoutLoading}>{checkoutLoading ? <><Loader2 className="spin"/> Préparation...</> : <>{paymentMethod === 'monetbil' ? <MobilePay/> : <CreditCard/>} {paymentMethod === 'monetbil' ? 'Payer avec Monetbil' : 'Payer avec Stripe'}</>}</button></> : <div className="empty"><ShoppingCart/> Votre panier est vide.</div>}</div></div>}
 
     {authOpen && <div className="modal-backdrop" onClick={() => setAuthOpen(false)}><form className="auth-modal" onSubmit={signIn} onClick={e => e.stopPropagation()}><div className="modal-head"><h2><LogIn/> Connexion</h2><button type="button" onClick={() => setAuthOpen(false)}><X/></button></div><input type="email" required placeholder="E-mail" value={email} onChange={e => setEmail(e.target.value)}/><input type="password" required placeholder="Mot de passe" value={password} onChange={e => setPassword(e.target.value)}/><button className="primary" disabled={authLoading}>{authLoading ? 'Chargement...' : 'Se connecter'}</button><button type="button" className="secondary" onClick={signUp} disabled={authLoading}>Créer un compte</button></form></div>}
 
