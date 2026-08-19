@@ -1,1 +1,1 @@
-export { default } from "../pjd-market-app.jsx";
+export { default } from "./MarketplaceShell.jsx";
