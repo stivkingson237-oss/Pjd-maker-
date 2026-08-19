@@ -1,55 +1,121 @@
-import React, { useState } from "react";
-import { Search, ShoppingCart, User, Menu, X, ChevronRight, Star, Heart, Download, ShieldCheck, Zap, Smartphone, BookOpen, Code2, GraduationCap, Palette, FileText, TrendingUp, Store, Package, BarChart3, Settings, Bell, MessageSquare, LogOut } from "lucide-react";
-import "./marketplace.css";
+import React, { useEffect, useMemo, useState } from 'react';
+import { Search, ShoppingCart, User, Menu, X, ChevronRight, Star, Heart, Download, ShieldCheck, Zap, Smartphone, BookOpen, Code2, GraduationCap, Palette, FileText, TrendingUp, Store, LogIn, LogOut, CreditCard, Loader2 } from 'lucide-react';
+import { supabase } from './lib/supabase';
+import './marketplace.css';
 
 const categories = [
-  [Code2, "Applications & APK", "Développement"],
-  [BookOpen, "E-books & PDF", "Livres numériques"],
-  [GraduationCap, "Formations", "Apprendre en ligne"],
-  [Palette, "Design & Création", "Ressources créatives"],
-  [Smartphone, "Templates", "Sites & applications"],
-  [FileText, "Documents", "Fichiers professionnels"],
-];
-const products = [
-  { title: "Pack Business Pro", cat: "Templates", price: "15 000 FCFA", old: "25 000 FCFA", badge: "-40%", icon: Store },
-  { title: "Formation Marketing Digital", cat: "Formations", price: "10 000 FCFA", old: "18 000 FCFA", badge: "Populaire", icon: GraduationCap },
-  { title: "Kit Applications Android", cat: "Applications & APK", price: "25 000 FCFA", old: "35 000 FCFA", badge: "Nouveau", icon: Smartphone },
-  { title: "Collection E-books Business", cat: "E-books & PDF", price: "7 500 FCFA", old: "12 000 FCFA", badge: "-37%", icon: BookOpen },
-  { title: "UI Kit Marketplace", cat: "Design & Création", price: "12 500 FCFA", old: "20 000 FCFA", badge: "Top vente", icon: Palette },
-  { title: "Pack Documents Pro", cat: "Documents", price: "5 000 FCFA", old: "8 000 FCFA", badge: "Nouveau", icon: FileText },
+  [Code2, 'Applications & APK', 'Développement'], [BookOpen, 'E-books & PDF', 'Livres numériques'],
+  [GraduationCap, 'Formations', 'Apprendre en ligne'], [Palette, 'Design & Création', 'Ressources créatives'],
+  [Smartphone, 'Templates', 'Sites & applications'], [FileText, 'Documents', 'Fichiers professionnels'],
 ];
 
-function ProductCard({ p }) {
-  const Icon = p.icon;
+const money = value => `${Number(value || 0).toLocaleString('fr-FR')} FCFA`;
+
+function ProductCard({ p, onAdd }) {
   return <article className="product-card">
-    <div className="product-art"><span className="product-badge">{p.badge}</span><button className="wish"><Heart size={18}/></button><Icon size={54}/></div>
-    <div className="product-body"><div className="product-cat">{p.cat}</div><h3>{p.title}</h3><div className="rating"><Star size={15} fill="currentColor"/> 4.8 <span>(124)</span></div><div className="price"><strong>{p.price}</strong><del>{p.old}</del></div><button className="add"><ShoppingCart size={17}/> Ajouter au panier</button></div>
+    <div className="product-art">
+      <span className="product-badge">{p.status === 'approved' ? 'Disponible' : 'Nouveau'}</span>
+      <button className="wish" aria-label="Favori"><Heart size={18}/></button>
+      {p.cover_image ? <img src={p.cover_image} alt="" loading="lazy" /> : <Store size={54}/>} 
+    </div>
+    <div className="product-body">
+      <div className="product-cat">{p.category || 'Produit numérique'}</div>
+      <h3>{p.title}</h3>
+      <div className="rating"><Star size={15} fill="currentColor"/> 4.8 <span>Produit digital</span></div>
+      <div className="price"><strong>{money(p.price)}</strong></div>
+      <button className="add" onClick={() => onAdd(p)}><ShoppingCart size={17}/> Ajouter au panier</button>
+    </div>
   </article>;
 }
 
 export default function MarketplaceShell() {
-  const [menu, setMenu] = useState(false);
-  const [search, setSearch] = useState("");
-  const [view, setView] = useState("Accueil");
-  const nav = ["Accueil", "Catalogue", "Formations", "Applications", "E-books", "Promotions"];
+  const [menu, setMenu] = useState(false), [search, setSearch] = useState(''), [view, setView] = useState('Accueil');
+  const [products, setProducts] = useState([]), [loading, setLoading] = useState(true), [error, setError] = useState('');
+  const [session, setSession] = useState(null), [authOpen, setAuthOpen] = useState(false), [email, setEmail] = useState(''), [password, setPassword] = useState('');
+  const [cart, setCart] = useState(() => JSON.parse(localStorage.getItem('pjd-cart') || '[]'));
+  const [cartOpen, setCartOpen] = useState(false), [checkoutLoading, setCheckoutLoading] = useState(false), [authLoading, setAuthLoading] = useState(false);
+  const nav = ['Accueil', 'Catalogue', 'Formations', 'Applications', 'E-books', 'Promotions'];
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, next) => setSession(next));
+    loadProducts();
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => { localStorage.setItem('pjd-cart', JSON.stringify(cart)); }, [cart]);
+
+  async function loadProducts() {
+    setLoading(true); setError('');
+    const { data, error: e } = await supabase.from('digital_products').select('id,seller_id,shop_id,title,description,category,price,cover_image,file_type,downloads,sales,status,created_at').eq('status', 'approved').order('created_at', { ascending: false });
+    if (e) setError('Impossible de charger les produits pour le moment.');
+    setProducts(data || []); setLoading(false);
+  }
+
+  async function signIn(e) {
+    e.preventDefault(); setAuthLoading(true);
+    const { error: err } = await supabase.auth.signInWithPassword({ email, password });
+    if (err) alert(err.message); else setAuthOpen(false);
+    setAuthLoading(false);
+  }
+  async function signUp() {
+    setAuthLoading(true);
+    const { error: err } = await supabase.auth.signUp({ email, password, options: { data: { name: email.split('@')[0] } } });
+    if (err) alert(err.message); else alert('Compte créé. Vérifie ton e-mail si une confirmation est demandée.');
+    setAuthLoading(false);
+  }
+  async function signOut() { await supabase.auth.signOut(); }
+
+  async function addToCart(p) {
+    const next = cart.some(x => x.product_id === p.id) ? cart.map(x => x.product_id === p.id ? { ...x, quantity: x.quantity + 1 } : x) : [...cart, { product_id: p.id, name: p.title, price: Number(p.price), quantity: 1 }];
+    setCart(next); setCartOpen(true);
+    if (session) {
+      let { data: dbCart } = await supabase.from('carts').select('id').eq('user_id', session.user.id).maybeSingle();
+      if (!dbCart) ({ data: dbCart } = await supabase.from('carts').insert({ user_id: session.user.id }).select('id').single());
+      if (dbCart) await supabase.from('cart_items').upsert({ cart_id: dbCart.id, product_id: p.id, name: p.title, price: p.price, quantity: next.find(x => x.product_id === p.id).quantity }, { onConflict: 'cart_id,product_id' });
+    }
+  }
+  const total = useMemo(() => cart.reduce((s, x) => s + Number(x.price) * x.quantity, 0), [cart]);
+
+  async function checkout() {
+    if (!session) { setCartOpen(false); setAuthOpen(true); return; }
+    if (!cart.length) return;
+    setCheckoutLoading(true);
+    try {
+      const { data: order, error: oe } = await supabase.from('orders').insert({ user_id: session.user.id, total, status: 'en_attente', payment_method: 'stripe' }).select('id').single();
+      if (oe) throw oe;
+      const { error: ie } = await supabase.from('order_items').insert(cart.map(x => ({ order_id: order.id, product_id: x.product_id, name: x.name, price: x.price, quantity: x.quantity })));
+      if (ie) throw ie;
+      const { data, error: pe } = await supabase.functions.invoke('stripe-checkout', { body: { orderId: order.id, currency: 'xof', customerEmail: session.user.email, successUrl: `${window.location.origin}/?payment=success&order=${order.id}`, cancelUrl: `${window.location.origin}/?payment=cancelled&order=${order.id}` } });
+      if (pe || data?.error) throw pe || new Error(data.error);
+      if (data?.url) window.location.href = data.url; else throw new Error('Lien de paiement indisponible.');
+    } catch (e) { alert(e.message || 'Paiement impossible.'); }
+    finally { setCheckoutLoading(false); }
+  }
+
+  const filtered = products.filter(p => !search || `${p.title} ${p.category} ${p.description || ''}`.toLowerCase().includes(search.toLowerCase()));
+  const visible = view === 'Formations' ? filtered.filter(p => p.category?.toLowerCase().includes('formation')) : view === 'Applications' ? filtered.filter(p => p.category?.toLowerCase().includes('application') || p.category?.toLowerCase().includes('apk')) : view === 'E-books' ? filtered.filter(p => p.category?.toLowerCase().includes('ebook') || p.category?.toLowerCase().includes('pdf')) : filtered;
+
   return <div className="marketplace">
     <div className="topbar"><div>Livraison numérique instantanée · Paiement sécurisé</div><div className="toplinks"><span>Devenir vendeur</span><span>Aide</span><span>Français</span></div></div>
     <header className="header">
-      <button className="mobile-menu" onClick={()=>setMenu(!menu)}>{menu?<X/>:<Menu/>}</button>
+      <button className="mobile-menu" onClick={() => setMenu(!menu)}>{menu ? <X/> : <Menu/>}</button>
       <div className="brand"><span className="brand-mark">M</span><span>MARKET<span className="brand-dot">.</span></span></div>
-      <div className="search"><Search size={20}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Rechercher un produit, une formation..."/><button>Rechercher</button></div>
-      <div className="actions"><button className="icon-btn"><Heart/><span>0</span></button><button className="icon-btn"><ShoppingCart/><span>0</span></button><button className="account"><User size={19}/><span>Mon compte</span></button></div>
+      <div className="search"><Search size={20}/><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher un produit, une formation..."/><button onClick={() => setView('Catalogue')}>Rechercher</button></div>
+      <div className="actions"><button className="icon-btn" onClick={() => setCartOpen(true)}><ShoppingCart/><span>{cart.reduce((s,x)=>s+x.quantity,0)}</span></button><button className="account" onClick={() => session ? signOut() : setAuthOpen(true)}>{session ? <LogOut size={19}/> : <User size={19}/>}<span>{session ? 'Déconnexion' : 'Mon compte'}</span></button></div>
     </header>
-    <nav className={"nav " + (menu?"open":"")}>{nav.map(n=><button key={n} className={view===n?"active":""} onClick={()=>{setView(n);setMenu(false)}}>{n}</button>)}<button className="nav-promo">Offres du moment <Zap size={15}/></button></nav>
+    <nav className={'nav ' + (menu ? 'open' : '')}>{nav.map(n => <button key={n} className={view === n ? 'active' : ''} onClick={() => { setView(n); setMenu(false); }}>{n}</button>)}<button className="nav-promo" onClick={() => setView('Promotions')}>Offres du moment <Zap size={15}/></button></nav>
 
-    {view === "Accueil" ? <>
-      <main>
-        <section className="hero"><div className="hero-copy"><span className="eyebrow">LA MARKETPLACE DIGITALE</span><h1>Tout ce qu’il vous faut.<br/><em>Au même endroit.</em></h1><p>Applications, formations, e-books, templates et ressources numériques sélectionnés pour vous aider à avancer plus vite.</p><div className="hero-buttons"><button className="primary" onClick={()=>setView("Catalogue")}>Explorer le catalogue <ChevronRight size={18}/></button><button className="secondary">Découvrir les nouveautés</button></div><div className="trust"><span><ShieldCheck/> Paiement sécurisé</span><span><Download/> Téléchargement immédiat</span></div></div><div className="hero-panel"><div className="hero-orb">M</div><div className="floating-card card-one"><TrendingUp/> <div><b>+2 500</b><small>produits disponibles</small></div></div><div className="floating-card card-two"><Star fill="currentColor"/> <div><b>4.9/5</b><small>avis clients</small></div></div></div></section>
-        <section className="section"><div className="section-head"><div><span className="eyebrow">EXPLOREZ</span><h2>Catégories populaires</h2></div><button className="see-all" onClick={()=>setView("Catalogue")}>Voir toutes <ChevronRight size={17}/></button></div><div className="categories">{categories.map(([Icon,title,sub])=><button className="category" key={title}><span className="cat-icon"><Icon/></span><div><b>{title}</b><small>{sub}</small></div><ChevronRight/></button>)}</div></section>
-        <section className="section muted"><div className="section-head"><div><span className="eyebrow">SÉLECTION</span><h2>Produits tendance</h2></div><button className="see-all" onClick={()=>setView("Catalogue")}>Tout voir <ChevronRight size={17}/></button></div><div className="products">{products.map(p=><ProductCard key={p.title} p={p}/>)}</div></section>
-        <section className="seller-cta"><div><span className="eyebrow">POUR LES CRÉATEURS</span><h2>Transformez vos compétences en revenus.</h2><p>Publiez vos produits numériques, développez votre audience et suivez vos ventes depuis votre espace vendeur.</p><button className="primary">Commencer à vendre <ChevronRight size={18}/></button></div><div className="seller-stats"><div><strong>0%</strong><span>Frais de mise en ligne</span></div><div><strong>24/7</strong><span>Votre boutique active</span></div><div><strong>100%</strong><span>Digital & instantané</span></div></div></section>
-      </main>
-    </> : <main><section className="page-title"><span className="eyebrow">MARKETPLACE</span><h1>{view}</h1><p>Découvrez notre sélection de ressources numériques.</p></section><section className="catalog-layout"><aside className="filters"><b>Filtrer</b><label>Catégorie</label>{categories.slice(0,5).map(([,t])=><button key={t}>{t}</button>)}<label>Prix</label><button>Moins de 10 000 FCFA</button><button>10 000 – 25 000 FCFA</button><button>Plus de 25 000 FCFA</button></aside><div className="catalog-products"><div className="catalog-tools"><span>{products.length} produits</span><select><option>Trier : Pertinence</option><option>Prix croissant</option><option>Plus populaires</option></select></div><div className="products">{products.map(p=><ProductCard key={p.title} p={p}/>)}</div></div></section></main>}
+    {view === 'Accueil' ? <main>
+      <section className="hero"><div className="hero-copy"><span className="eyebrow">LA MARKETPLACE DIGITALE</span><h1>Tout ce qu’il vous faut.<br/><em>Au même endroit.</em></h1><p>Applications, formations, e-books, templates et ressources numériques disponibles immédiatement.</p><div className="hero-buttons"><button className="primary" onClick={() => setView('Catalogue')}>Explorer le catalogue <ChevronRight size={18}/></button><button className="secondary" onClick={loadProducts}>Actualiser les produits</button></div><div className="trust"><span><ShieldCheck/> Paiement sécurisé</span><span><Download/> Téléchargement immédiat</span></div></div><div className="hero-panel"><div className="hero-orb">M</div><div className="floating-card card-one"><TrendingUp/><div><b>{products.length}</b><small>produits disponibles</small></div></div><div className="floating-card card-two"><Star fill="currentColor"/><div><b>4.9/5</b><small>expérience client</small></div></div></div></section>
+      <section className="section"><div className="section-head"><div><span className="eyebrow">EXPLOREZ</span><h2>Catégories populaires</h2></div><button className="see-all" onClick={() => setView('Catalogue')}>Voir toutes <ChevronRight size={17}/></button></div><div className="categories">{categories.map(([Icon,title,sub]) => <button className="category" key={title} onClick={() => { setSearch(title); setView('Catalogue'); }}><span className="cat-icon"><Icon/></span><div><b>{title}</b><small>{sub}</small></div><ChevronRight/></button>)}</div></section>
+      <section className="section muted"><div className="section-head"><div><span className="eyebrow">CATALOGUE RÉEL</span><h2>Produits disponibles</h2></div><button className="see-all" onClick={() => setView('Catalogue')}>Tout voir <ChevronRight size={17}/></button></div>{loading ? <div className="loading"><Loader2 className="spin"/> Chargement des produits...</div> : error ? <div className="empty">{error}</div> : <div className="products">{visible.slice(0, 8).map(p => <ProductCard key={p.id} p={p} onAdd={addToCart}/>)}</div>}</section>
+      <section className="seller-cta"><div><span className="eyebrow">POUR LES CRÉATEURS</span><h2>Transformez vos compétences en revenus.</h2><p>Publiez vos produits numériques et développez votre boutique.</p><button className="primary">Commencer à vendre <ChevronRight size={18}/></button></div><div className="seller-stats"><div><strong>{products.length}</strong><span>Produits actifs</span></div><div><strong>24/7</strong><span>Boutique active</span></div><div><strong>100%</strong><span>Digital</span></div></div></section>
+    </main> : <main><section className="page-title"><span className="eyebrow">MARKETPLACE</span><h1>{view}</h1><p>Les produits publiés dans votre base Supabase.</p></section><section className="catalog-layout"><aside className="filters"><b>Catégories</b>{categories.map(([,t]) => <button key={t} onClick={() => setSearch(t)}>{t}</button>)}</aside><div className="catalog-products"><div className="catalog-tools"><span>{visible.length} produits</span><button onClick={loadProducts}>Actualiser</button></div>{loading ? <div className="loading"><Loader2 className="spin"/> Chargement...</div> : <div className="products">{visible.map(p => <ProductCard key={p.id} p={p} onAdd={addToCart}/>)}</div>}</div></section></main>}
+
+    {cartOpen && <div className="modal-backdrop" onClick={() => setCartOpen(false)}><div className="cart-modal" onClick={e => e.stopPropagation()}><div className="modal-head"><h2>Votre panier</h2><button onClick={() => setCartOpen(false)}><X/></button></div>{cart.length ? <>{cart.map(x => <div className="cart-row" key={x.product_id}><div><b>{x.name}</b><small>{money(x.price)} × {x.quantity}</small></div><button onClick={() => setCart(cart.filter(i => i.product_id !== x.product_id))}>Supprimer</button></div>)}<div className="cart-total"><span>Total</span><strong>{money(total)}</strong></div><button className="primary checkout" onClick={checkout} disabled={checkoutLoading}>{checkoutLoading ? <><Loader2 className="spin"/> Préparation...</> : <><CreditCard/> Payer maintenant</>}</button></> : <div className="empty"><ShoppingCart/> Votre panier est vide.</div>}</div></div>}
+
+    {authOpen && <div className="modal-backdrop" onClick={() => setAuthOpen(false)}><form className="auth-modal" onSubmit={signIn} onClick={e => e.stopPropagation()}><div className="modal-head"><h2><LogIn/> Connexion</h2><button type="button" onClick={() => setAuthOpen(false)}><X/></button></div><input type="email" required placeholder="E-mail" value={email} onChange={e => setEmail(e.target.value)}/><input type="password" required placeholder="Mot de passe" value={password} onChange={e => setPassword(e.target.value)}/><button className="primary" disabled={authLoading}>{authLoading ? 'Chargement...' : 'Se connecter'}</button><button type="button" className="secondary" onClick={signUp} disabled={authLoading}>Créer un compte</button></form></div>}
 
     <footer><div className="footer-grid"><div><div className="brand footer-brand"><span className="brand-mark">M</span><span>MARKET<span className="brand-dot">.</span></span></div><p>La marketplace moderne pour vos ressources numériques.</p></div><div><b>Marketplace</b><span>Catalogue</span><span>Catégories</span><span>Promotions</span></div><div><b>Vendeurs</b><span>Devenir vendeur</span><span>Espace vendeur</span><span>Centre d'aide</span></div><div><b>Support</b><span>Contact</span><span>FAQ</span><span>Conditions</span></div></div><div className="footer-bottom">© 2026 Marketplace · Tous droits réservés <span>Paiement sécurisé · Téléchargement instantané</span></div></footer>
   </div>;
