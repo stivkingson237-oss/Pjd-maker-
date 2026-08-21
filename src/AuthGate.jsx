@@ -56,7 +56,7 @@ export default function AuthGate({ children }) {
     const { error: verifyError } = await supabase.auth.verifyOtp({
       email: email.trim(),
       token: code.trim(),
-      type: 'signup',
+      type: 'email',
     });
     setLoading(false);
     if (verifyError) {
