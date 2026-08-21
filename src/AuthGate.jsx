@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { X, MailCheck, UserPlus, Loader2 } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
+const PRODUCTION_URL = 'https://pjd-maker.vercel.app';
+
 export default function AuthGate({ children }) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState('signup');
@@ -24,7 +26,10 @@ export default function AuthGate({ children }) {
     const { data, error: signUpError } = await supabase.auth.signUp({
       email: email.trim(),
       password,
-      options: { data: { name: email.trim().split('@')[0] } },
+      options: {
+        data: { name: email.trim().split('@')[0] },
+        emailRedirectTo: PRODUCTION_URL,
+      },
     });
     setLoading(false);
     if (signUpError) {
@@ -33,7 +38,7 @@ export default function AuthGate({ children }) {
     }
     if (data?.user && !data.session) {
       setMode('verify');
-      setMessage(`Un code de confirmation a été envoyé à ${email.trim()}.`);
+      setMessage(`Un code de confirmation à 6 chiffres a été envoyé à ${email.trim()}.`);
     } else {
       setMessage('Compte créé avec succès. Vous êtes maintenant connecté.');
       setMode('done');
@@ -47,7 +52,7 @@ export default function AuthGate({ children }) {
     const { error: verifyError } = await supabase.auth.verifyOtp({
       email: email.trim(),
       token: code.trim(),
-      type: 'signup',
+      type: 'email',
     });
     setLoading(false);
     if (verifyError) {
