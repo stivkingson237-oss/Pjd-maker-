@@ -20,7 +20,7 @@ export default function AuthGate({ children }) {
     e.preventDefault();
     setError('');
     setMessage('');
-    if (!firstName.trim() || !lastName.trim()) {
+    if (!lastName.trim() || !firstName.trim()) {
       setError('Veuillez renseigner votre nom et votre prénom.');
       return;
     }
@@ -29,15 +29,17 @@ export default function AuthGate({ children }) {
       return;
     }
     setLoading(true);
-    const fullName = `${firstName.trim()} ${lastName.trim()}`;
+    const cleanFirstName = firstName.trim();
+    const cleanLastName = lastName.trim();
+    const fullName = `${cleanLastName} ${cleanFirstName}`;
     const { data, error: signUpError } = await supabase.auth.signUp({
       email: email.trim(),
       password,
       options: {
         data: {
           name: fullName,
-          first_name: firstName.trim(),
-          last_name: lastName.trim(),
+          first_name: cleanFirstName,
+          last_name: cleanLastName,
         },
         emailRedirectTo: PRODUCTION_URL,
       },
@@ -49,9 +51,9 @@ export default function AuthGate({ children }) {
     }
     if (data?.user && !data.session) {
       setMode('verify');
-      setMessage(`Bonjour ${firstName.trim()} ${lastName.trim()} 👋 Un code de confirmation à 6 chiffres a été envoyé à ${email.trim()}.`);
+      setMessage(`Bonjour ${cleanFirstName} 👋 Un code de confirmation à 6 chiffres a été envoyé à ${email.trim()}.`);
     } else {
-      setMessage(`Bienvenue ${firstName.trim()} ${lastName.trim()} ! Votre compte PJD Maker est créé.`);
+      setMessage(`Bienvenue ${cleanFirstName} ! Votre compte PJD Maker est créé.`);
       setMode('done');
     }
   }
@@ -81,16 +83,13 @@ export default function AuthGate({ children }) {
   async function resendCode() {
     setError('');
     setLoading(true);
-    const { error: resendError } = await supabase.auth.resend({
-      type: 'signup',
-      email: email.trim(),
-    });
+    const { error: resendError } = await supabase.auth.resend({ type: 'signup', email: email.trim() });
     setLoading(false);
     if (resendError) {
       setError(resendError.message);
     } else {
       setCode('');
-      setMessage(`Un nouveau code a été envoyé à ${email.trim()}. Utilisez uniquement le dernier code reçu.`);
+      setMessage(`Bonjour ${firstName.trim()} 👋 Un nouveau code a été envoyé à ${email.trim()}. Utilisez uniquement le dernier code reçu.`);
     }
   }
 
@@ -101,15 +100,7 @@ export default function AuthGate({ children }) {
     if (text.includes('créer un compte')) {
       event.preventDefault();
       event.stopPropagation();
-      setError('');
-      setMessage('');
-      setFirstName('');
-      setLastName('');
-      setEmail('');
-      setPassword('');
-      setCode('');
-      setMode('signup');
-      setOpen(true);
+      setError(''); setMessage(''); setFirstName(''); setLastName(''); setEmail(''); setPassword(''); setCode(''); setMode('signup'); setOpen(true);
     }
   }
 
@@ -122,15 +113,15 @@ export default function AuthGate({ children }) {
           <button type="button" onClick={() => setOpen(false)} aria-label="Fermer"><X/></button>
         </div>
         {mode === 'verify' ? <form onSubmit={verifyCode}>
-          <div className="auth-success"><MailCheck size={42}/><p>{message || `Entrez le code envoyé à ${email}.`}</p></div>
+          <div className="auth-success"><MailCheck size={42}/><p>{message || `Bonjour ${firstName}. Entrez le code envoyé à ${email}.`}</p></div>
           {error && <div className="auth-error">{error}</div>}
           <input inputMode="numeric" autoComplete="one-time-code" maxLength={6} pattern="[0-9]{6}" required value={code} onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="Code à 6 chiffres" aria-label="Code de confirmation" />
           <button className="primary" disabled={loading || code.length !== 6}>{loading ? <><Loader2 className="spin"/> Vérification...</> : <><MailCheck size={18}/> Confirmer le code</>}</button>
           <button className="secondary" type="button" disabled={loading} onClick={resendCode}>Renvoyer le code</button>
         </form> : mode === 'done' ? <div className="auth-success"><MailCheck size={42}/><p>{message}</p><button className="primary" type="button" onClick={() => setOpen(false)}>Continuer</button></div> : <form onSubmit={signup}>
           {error && <div className="auth-error">{error}</div>}
-          <label>Prénom<input type="text" required autoComplete="given-name" value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="Votre prénom" /></label>
           <label>Nom<input type="text" required autoComplete="family-name" value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Votre nom" /></label>
+          <label>Prénom<input type="text" required autoComplete="given-name" value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="Votre prénom" /></label>
           <label>Adresse e-mail<input type="email" required autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="exemple@email.com" /></label>
           <label>Mot de passe<input type="password" required minLength={6} autoComplete="new-password" value={password} onChange={e => setPassword(e.target.value)} placeholder="6 caractères minimum" /></label>
           <button className="primary" disabled={loading}>{loading ? <><Loader2 className="spin"/> Création...</> : <><UserPlus size={18}/> Créer mon compte</>}</button>
