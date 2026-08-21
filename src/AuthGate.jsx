@@ -48,11 +48,15 @@ export default function AuthGate({ children }) {
   async function verifyCode(e) {
     e.preventDefault();
     setError('');
+    if (code.trim().length !== 6) {
+      setError('Saisissez le code à 6 chiffres reçu par e-mail.');
+      return;
+    }
     setLoading(true);
     const { error: verifyError } = await supabase.auth.verifyOtp({
       email: email.trim(),
       token: code.trim(),
-      type: 'email',
+      type: 'signup',
     });
     setLoading(false);
     if (verifyError) {
@@ -74,6 +78,7 @@ export default function AuthGate({ children }) {
     if (resendError) {
       setError(resendError.message);
     } else {
+      setCode('');
       setMessage(`Un nouveau code a été envoyé à ${email.trim()}.`);
     }
   }
