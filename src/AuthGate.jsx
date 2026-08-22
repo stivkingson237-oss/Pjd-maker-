@@ -31,9 +31,10 @@ export default function AuthGate({ children }) {
     setLoading(true);
     const cleanFirstName = firstName.trim();
     const cleanLastName = lastName.trim();
+    const cleanEmail = email.trim().toLowerCase();
     const fullName = `${cleanLastName} ${cleanFirstName}`;
     const { data, error: signUpError } = await supabase.auth.signUp({
-      email: email.trim(),
+      email: cleanEmail,
       password,
       options: {
         data: {
@@ -50,8 +51,9 @@ export default function AuthGate({ children }) {
       return;
     }
     if (data?.user && !data.session) {
+      setCode('');
       setMode('verify');
-      setMessage(`Bonjour ${cleanFirstName} 👋 Un code de confirmation à 6 chiffres a été envoyé à ${email.trim()}.`);
+      setMessage(`Bonjour ${cleanFirstName} 👋 Un code de confirmation à 6 chiffres a été envoyé à ${cleanEmail}.`);
     } else {
       setMessage(`Bienvenue ${cleanFirstName} ! Votre compte PJD Maker est créé.`);
       setMode('done');
@@ -61,35 +63,48 @@ export default function AuthGate({ children }) {
   async function verifyCode(e) {
     e.preventDefault();
     setError('');
-    if (code.trim().length !== 6) {
-      setError('Saisissez le code à 6 chiffres reçu par e-mail.');
+
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanCode = code.replace(/\D/g, '').slice(0, 6);
+
+    if (!/^\d{6}$/.test(cleanCode)) {
+      setError('Saisissez exactement le code à 6 chiffres reçu par e-mail.');
       return;
     }
+
     setLoading(true);
     const { error: verifyError } = await supabase.auth.verifyOtp({
-      email: email.trim(),
-      token: code.trim(),
+      email: cleanEmail,
+      token: cleanCode,
       type: 'email',
     });
     setLoading(false);
+
     if (verifyError) {
       setError('Code incorrect ou expiré. Demandez un nouveau code.');
       return;
     }
+
+    setCode('');
     setMessage(`Félicitations ${firstName.trim()} ! Votre e-mail est confirmé et votre compte PJD Maker est activé.`);
     setMode('done');
   }
 
   async function resendCode() {
     setError('');
+    setMessage('');
+    const cleanEmail = email.trim().toLowerCase();
     setLoading(true);
-    const { error: resendError } = await supabase.auth.resend({ type: 'signup', email: email.trim() });
+    const { error: resendError } = await supabase.auth.resend({
+      type: 'signup',
+      email: cleanEmail,
+    });
     setLoading(false);
     if (resendError) {
       setError(resendError.message);
     } else {
       setCode('');
-      setMessage(`Bonjour ${firstName.trim()} 👋 Un nouveau code a été envoyé à ${email.trim()}. Utilisez uniquement le dernier code reçu.`);
+      setMessage(`Bonjour ${firstName.trim()} 👋 Un nouveau code a été envoyé à ${cleanEmail}. Utilisez uniquement le dernier code reçu.`);
     }
   }
 
@@ -115,7 +130,7 @@ export default function AuthGate({ children }) {
         {mode === 'verify' ? <form onSubmit={verifyCode}>
           <div className="auth-success"><MailCheck size={42}/><p>{message || `Bonjour ${firstName}. Entrez le code envoyé à ${email}.`}</p></div>
           {error && <div className="auth-error">{error}</div>}
-          <input inputMode="numeric" autoComplete="one-time-code" maxLength={6} pattern="[0-9]{6}" required value={code} onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="Code à 6 chiffres" aria-label="Code de confirmation" />
+          <input type="text" inputMode="numeric" autoComplete="one-time-code" autoFocus maxLength={6} pattern="[0-9]{6}" required value={code} onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="Code à 6 chiffres" aria-label="Code de confirmation" />
           <button className="primary" disabled={loading || code.length !== 6}>{loading ? <><Loader2 className="spin"/> Vérification...</> : <><MailCheck size={18}/> Confirmer le code</>}</button>
           <button className="secondary" type="button" disabled={loading} onClick={resendCode}>Renvoyer le code</button>
         </form> : mode === 'done' ? <div className="auth-success"><MailCheck size={42}/><p>{message}</p><button className="primary" type="button" onClick={() => setOpen(false)}>Continuer</button></div> : <form onSubmit={signup}>
