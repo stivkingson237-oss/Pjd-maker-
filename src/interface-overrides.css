@@ -1,0 +1,8 @@
+/* PJD Maker — nouvelle navigation officielle */
+.pjd-topnav{display:flex!important;position:sticky!important;top:0!important;z-index:1000!important}
+.marketplace .topbar,.marketplace>.header,.marketplace>.brand-slogan,.marketplace>nav.nav{display:none!important}
+.marketplace{padding-top:0!important}
+.pjd-topnav-actions{margin-left:auto!important}
+@media(max-width:720px){.pjd-topnav{min-height:58px!important}.pjd-topnav-actions{overflow-x:auto!important;white-space:nowrap!important}.pjd-action,.pjd-create-shop{flex-shrink:0!important}}
+/* Évite les anciens raccourcis flottants de l'espace marketplace */
+.marketplace .mobile-menu{display:none!important}
