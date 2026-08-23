@@ -32,7 +32,13 @@ export default function SellerDashboard({ onBack }) {
     const slug=shop?.slug||`${shopName.toLowerCase().trim().replace(/[^a-z0-9]+/g,'-')}-${session.user.id.slice(0,6)}`;
     const payload={owner_id:session.user.id,shop_name:shopName.trim(),slug,description:shopDescription.trim(),category,status:'active',phone:shopPhone.trim()||null,address:shopAddress.trim()||null,city:shopCity.trim()||null,country:shopCountry.trim()||'Cameroun'};
     const result=shop?await supabase.from('shops').update(payload).eq('id',shop.id).select().single():await supabase.from('shops').insert(payload).select().single();
-    if(result.error)setMessage(result.error.message); else {setShop(result.data);await supabase.from('users').update({role:'seller',shop_id:result.data.id}).eq('id',session.user.id);setMessage('Boutique enregistrée et activée.');setTab('dashboard')}
+    if(result.error){setMessage(result.error.message);setSaving(false);return;}
+    setShop(result.data);
+    await supabase.from('users').update({role:'seller',shop_id:result.data.id}).eq('id',session.user.id);
+    setMessage('Boutique enregistrée et activée.');
+    // Après validation de la boutique, ouvrir directement le tableau de bord vendeur.
+    setTab('dashboard');
+    await load(session.user.id);
     setSaving(false);
   }
 
@@ -60,7 +66,7 @@ export default function SellerDashboard({ onBack }) {
   const nav=[['dashboard','Tableau de bord',LayoutDashboard],['shop','Ma boutique',Store],['products','Produits & stock',Boxes],['orders','Commandes',ClipboardList],['finance','Finances',Wallet],['settings','Paramètres',Settings]];
 
   return <div className="seller-page">
-    <div className="seller-topbar"><div className="seller-brand"><button className="back-btn" onClick={onBack}><ArrowLeft size={18}/> Marketplace</button><div><span className="eyebrow">PJD MAKER · ESPACE VENDEUR</span><h1>{shop?.shop_name||'Ma boutique'}</h1></div></div><div className="shop-status"><span className="status-dot"/> {shop?'Boutique active':'Boutique à créer'}</div></div>
+    <div className="seller-topbar"><div className="seller-brand"><button className="back-btn" onClick={onBack}><ArrowLeft size={18}/> Retour à l'accueil</button><div><span className="eyebrow">PJD MAKER · ESPACE VENDEUR</span><h1>{shop?.shop_name||'Ma boutique'}</h1></div></div><div className="shop-status"><span className="status-dot"/> {shop?'Boutique active':'Boutique à créer'}</div></div>
     <div className="seller-layout">
       <aside className="seller-sidebar">{nav.map(([id,label,Icon])=><button key={id} className={tab===id?'active':''} onClick={()=>setTab(id)}><Icon size={19}/>{label}</button>)}</aside>
       <main className="seller-main">
