@@ -5,7 +5,7 @@ import { supabase } from './lib/supabase';
 const PRODUCTION_URL = 'https://pjd-maker.vercel.app';
 const OTP_LENGTH = 6;
 
-export default function AuthGate({ children }) {
+export default function AuthGate({ children, onSessionChange }) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState('signup');
   const [firstName, setFirstName] = useState('');
@@ -19,6 +19,10 @@ export default function AuthGate({ children }) {
 
   function resetAuth(nextMode) { setMode(nextMode); setError(''); setMessage(''); setCode(''); setPassword(''); }
 
+  async function notifySession(session) {
+    if (onSessionChange) onSessionChange(session || null);
+  }
+
   async function signup(e) {
     e.preventDefault(); setError(''); setMessage('');
     if (!lastName.trim() || !firstName.trim()) return setError('Veuillez renseigner votre nom et votre prénom.');
@@ -29,14 +33,15 @@ export default function AuthGate({ children }) {
     setLoading(false);
     if (signUpError) return setError(signUpError.message);
     if (data?.user && !data.session) { setCode(''); setMode('verify'); setMessage(`Bonjour ${cleanFirstName} 👋 Un code de confirmation à ${OTP_LENGTH} chiffres a été envoyé à ${cleanEmail}.`); }
-    else { setMessage(`Bienvenue ${cleanFirstName} ! Votre compte PJD Maker est créé.`); setMode('done'); }
+    else { await notifySession(data?.session); setMessage(`Bienvenue ${cleanFirstName} ! Votre compte PJD Maker est créé.`); setMode('done'); }
   }
 
   async function login(e) {
     e.preventDefault(); setError(''); setLoading(true);
-    const { error: loginError } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
+    const { data, error: loginError } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
     setLoading(false);
     if (loginError) return setError('E-mail ou mot de passe incorrect.');
+    await notifySession(data.session);
     setMessage('Connexion réussie. Bienvenue sur PJD Maker !'); setMode('done');
   }
 
@@ -45,9 +50,10 @@ export default function AuthGate({ children }) {
     const cleanEmail = email.trim().toLowerCase(), cleanCode = code.replace(/\D/g, '').slice(0, OTP_LENGTH);
     if (!new RegExp(`^\\d{${OTP_LENGTH}}$`).test(cleanCode)) return setError(`Saisissez exactement le code à ${OTP_LENGTH} chiffres reçu par e-mail.`);
     setLoading(true);
-    const { error: verifyError } = await supabase.auth.verifyOtp({ email: cleanEmail, token: cleanCode, type: 'email' });
+    const { data, error: verifyError } = await supabase.auth.verifyOtp({ email: cleanEmail, token: cleanCode, type: 'email' });
     setLoading(false);
     if (verifyError) return setError('Code incorrect ou expiré. Demandez un nouveau code.');
+    await notifySession(data?.session);
     setCode(''); setMessage(`Félicitations ${firstName.trim()} ! Votre e-mail est confirmé et votre compte PJD Maker est activé.`); setMode('done');
   }
 
