@@ -1,4 +1,4 @@
-import React,{useState}from'react';
+import React,{useEffect,useState}from'react';
 import MarketplaceShell from'./MarketplaceShell.jsx';
 import AuthGate from'./AuthGate.jsx';
 import SellerDashboard from'./SellerDashboard.jsx';
@@ -16,6 +16,7 @@ import SellerCRM from'./SellerCRM.jsx';
 import MarketplaceTopNav,{CreateShopFlow}from'./MarketplaceTopNav.jsx';
 import MarketplaceBottomNav from'./MarketplaceBottomNav.jsx';
 import SellerSpaceNav from'./SellerSpaceNav.jsx';
+import{supabase}from'./lib/supabase';
 import'./pjd-seller-space.css';
 
 export default function App(){
@@ -24,6 +25,7 @@ export default function App(){
  const[shopFlow,setShopFlow]=useState(false);
  const[shop,setShop]=useState(null);
  const[accountSection,setAccountSection]=useState('account');
+ useEffect(()=>{if(!accountSession?.user?.id){setShop(null);return}const load=async()=>{const{data}=await supabase.from('shops').select('*').eq('owner_id',accountSession.user.id).maybeSingle();setShop(data||null)};load();const handler=e=>setShop(e.detail||null);window.addEventListener('pjd-shop-updated',handler);return()=>window.removeEventListener('pjd-shop-updated',handler)},[accountSession?.user?.id]);
  const handleClick=e=>{const b=e.target.closest?.('button');if(!b)return;const t=(b.textContent||'').toLowerCase();if(t.includes('toutes les fonctionnalités'))setScreen('features');if(t.includes('devenir vendeur')||t.includes('commencer à vendre'))setScreen('seller');if(t.includes('administration'))setScreen('admin');if(t.includes('mon compte'))openAccount('account');if(t.includes('paramètres du profil'))setScreen('profile-settings');if(t.includes('opérations vendeur'))setScreen('seller-operations');if(t.includes('mes commandes'))setScreen('orders');if(t.includes('mes livraisons'))setScreen('deliveries');if(t.includes('écosystème vendeur')||t.includes('pjd assistant')||t.includes('marketing ia'))setScreen('growth');if(t.includes('crm clients'))setScreen('crm')};
  function openCart(){document.querySelector('.marketplace .actions .icon-btn')?.click()}
  function openAccount(section='account'){setAccountSection(section);setScreen('account')}
