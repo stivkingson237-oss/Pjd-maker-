@@ -14,6 +14,7 @@ import CustomerDeliveryReview from'./CustomerDeliveryReview.jsx';
 import SellerGrowthHub from'./SellerGrowthHub.jsx';
 import SellerCRM from'./SellerCRM.jsx';
 import MarketplaceTopNav,{CreateShopFlow}from'./MarketplaceTopNav.jsx';
+import MarketplaceBottomNav from'./MarketplaceBottomNav.jsx';
 import SellerSpaceNav from'./SellerSpaceNav.jsx';
 import'./pjd-seller-space.css';
 
@@ -22,9 +23,10 @@ export default function App(){
  const[accountSession,setAccountSession]=useState(null);
  const[shopFlow,setShopFlow]=useState(false);
  const[shop,setShop]=useState(null);
- const handleClick=e=>{const b=e.target.closest?.('button');if(!b)return;const t=(b.textContent||'').toLowerCase();if(t.includes('toutes les fonctionnalités'))setScreen('features');if(t.includes('devenir vendeur')||t.includes('commencer à vendre'))setScreen('seller');if(t.includes('administration'))setScreen('admin');if(t.includes('mon compte'))setScreen('account');if(t.includes('paramètres du profil'))setScreen('profile-settings');if(t.includes('opérations vendeur'))setScreen('seller-operations');if(t.includes('mes commandes'))setScreen('orders');if(t.includes('mes livraisons'))setScreen('deliveries');if(t.includes('écosystème vendeur')||t.includes('pjd assistant')||t.includes('marketing ia'))setScreen('growth');if(t.includes('crm clients'))setScreen('crm')};
+ const[accountSection,setAccountSection]=useState('account');
+ const handleClick=e=>{const b=e.target.closest?.('button');if(!b)return;const t=(b.textContent||'').toLowerCase();if(t.includes('toutes les fonctionnalités'))setScreen('features');if(t.includes('devenir vendeur')||t.includes('commencer à vendre'))setScreen('seller');if(t.includes('administration'))setScreen('admin');if(t.includes('mon compte'))openAccount('account');if(t.includes('paramètres du profil'))setScreen('profile-settings');if(t.includes('opérations vendeur'))setScreen('seller-operations');if(t.includes('mes commandes'))setScreen('orders');if(t.includes('mes livraisons'))setScreen('deliveries');if(t.includes('écosystème vendeur')||t.includes('pjd assistant')||t.includes('marketing ia'))setScreen('growth');if(t.includes('crm clients'))setScreen('crm')};
  function openCart(){document.querySelector('.marketplace .actions .icon-btn')?.click()}
- function openAccount(section='account'){setScreen('account');window.dispatchEvent(new CustomEvent('pjd-account-section',{detail:section}))}
+ function openAccount(section='account'){setAccountSection(section);setScreen('account')}
  function openSeller(existingShop){if(existingShop){setShop(existingShop);setScreen('seller')}else setShopFlow(true)}
  function finishShop(data){setShop(data||null);setShopFlow(false);setScreen('seller');window.dispatchEvent(new CustomEvent('pjd-shop-updated',{detail:data}))}
  function navigateSeller(id){
@@ -43,9 +45,12 @@ export default function App(){
  </div>;
  return <AuthGate onSessionChange={setAccountSession}>
    <PhotoPickerEnhancer session={accountSession}/>
-   {screen==='market'&&<MarketplaceTopNav session={accountSession} onOpenCart={openCart} onOpenSeller={openSeller} onOpenAccount={openAccount}/>} 
+   {screen==='market'&&<>
+     <MarketplaceTopNav session={accountSession} onOpenCart={openCart} onOpenSeller={openSeller} onOpenAccount={openAccount}/>
+     <MarketplaceBottomNav session={accountSession} shop={shop} onHome={()=>setScreen('market')} onCatalog={()=>{setScreen('market');setTimeout(()=>document.querySelector('.marketplace .nav button:nth-child(2)')?.click(),0)}} onCart={openCart} onFavorites={()=>openAccount('favorites')} onAccount={()=>openAccount('account')} onSeller={openSeller}/>
+   </>}
    <div onClickCapture={handleClick}>
-    {screen==='features'?<PjdMakerFeatures onBack={()=>setScreen('market')}/>:screen==='seller'?sellerSpace:screen==='growth'?<SellerGrowthHub session={accountSession} onBack={()=>setScreen('seller')}/>:screen==='crm'?<SellerCRM session={accountSession} onBack={()=>setScreen('seller')}/>:screen==='seller-operations'?<SellerOperations session={accountSession} onBack={()=>setScreen('seller')}/>:screen==='orders'?<CustomerOrders session={accountSession} onBack={()=>setScreen('market')}/>:screen==='deliveries'?<CustomerDeliveryReview session={accountSession}/>:screen==='admin'?<AdminDashboard onBack={()=>setScreen('market')}/>:screen==='profile-settings'?<ProfileSettings onBack={()=>setScreen('account')}/>:screen==='account'?<AccountPage session={accountSession} onBack={()=>setScreen('market')}/>:<div><MarketplaceShell/><MultiVendorCheckout session={accountSession}/></div>}
+    {screen==='features'?<PjdMakerFeatures onBack={()=>setScreen('market')}/>:screen==='seller'?sellerSpace:screen==='growth'?<SellerGrowthHub session={accountSession} onBack={()=>setScreen('seller')}/>:screen==='crm'?<SellerCRM session={accountSession} onBack={()=>setScreen('seller')}/>:screen==='seller-operations'?<SellerOperations session={accountSession} onBack={()=>setScreen('seller')}/>:screen==='orders'?<CustomerOrders session={accountSession} onBack={()=>setScreen('market')}/>:screen==='deliveries'?<CustomerDeliveryReview session={accountSession}/>:screen==='admin'?<AdminDashboard onBack={()=>setScreen('market')}/>:screen==='profile-settings'?<ProfileSettings onBack={()=>setScreen('account')}/>:screen==='account'?<AccountPage session={accountSession} initialSection={accountSection} onBack={()=>setScreen('market')}/>:<div><MarketplaceShell/><MultiVendorCheckout session={accountSession}/></div>}
    </div>
    {shopFlow&&<CreateShopFlow session={accountSession} onClose={()=>setShopFlow(false)} onDone={finishShop}/>} 
  </AuthGate>
