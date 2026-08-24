@@ -11,7 +11,7 @@ export default function MarketplaceTopNav({session,onOpenCart,onOpenSeller,onOpe
 }
 
 export function CreateShopFlow({session,onDone,onClose}){
- const[mode,setMode]=useState(session?'shop':'signup');const[email,setEmail]=useState('');const[password,setPassword]=useState('');const[code,setCode]=useState('');const[msg,setMsg]=useState('');const[busy,setBusy]=useState(false);const[activeSession,setActiveSession]=useState(session);const[form,setForm]=useState({name:'',category:'',description:'',phone:'',city:'',country:'Cameroun'});
+ const[mode,setMode]=useState(session?'shop':'signup'),[email,setEmail]=useState(''),[password,setPassword]=useState(''),[code,setCode]=useState(''),[msg,setMsg]=useState(''),[busy,setBusy]=useState(false),[activeSession,setActiveSession]=useState(session),[form,setForm]=useState({name:'',category:'',description:'',phone:'',city:'',country:'Cameroun'});
  useEffect(()=>{if(session){setActiveSession(session);setMode('shop')}},[session]);
  const update=(k,v)=>setForm(f=>({...f,[k]:v}));
  async function signup(e){e.preventDefault();setBusy(true);setMsg('');const{error}=await supabase.auth.signUp({email:email.trim().toLowerCase(),password});if(error)setMsg(error.message);else{setMode('verify');setMsg('Compte créé. Entrez le code de confirmation reçu par e-mail.')}setBusy(false)}
