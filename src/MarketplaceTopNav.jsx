@@ -3,6 +3,7 @@ import{Heart,ShoppingCart,Store,User,Mail,X,UserPlus}from'lucide-react';
 import{supabase}from'./lib/supabase';
 import'./marketplace-topnav.css';
 
+// PJD Market: navigation and one-time seller shop setup flow.
 export default function MarketplaceTopNav({session,onOpenCart,onOpenSeller,onOpenAccount}){
  const[shop,setShop]=useState(null);
  useEffect(()=>{let alive=true;if(!session){setShop(null);return()=>{alive=false}};supabase.from('shops').select('*').eq('owner_id',session.user.id).maybeSingle().then(({data})=>{if(alive)setShop(data||null)});const handler=e=>setShop(e.detail||null);window.addEventListener('pjd-shop-updated',handler);return()=>{alive=false;window.removeEventListener('pjd-shop-updated',handler)}},[session?.user?.id]);
