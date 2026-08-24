@@ -1,0 +1,47 @@
+name: Implement cart feature
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  patch-cart:
+    if: ${{ !contains(github.event.head_commit.message, 'Implement functional cart') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Patch MarketplaceShell cart
+        shell: python
+        run: |
+          from pathlib import Path
+          p=Path('src/MarketplaceShell.jsx')
+          s=p.read_text()
+          if 'function CartModal(' in s:
+              print('Cart feature already present')
+              raise SystemExit(0)
+          s=s.replace("Copy,CheckCircle,Image as ImageIcon}from'lucide-react';", "Copy,CheckCircle,Image as ImageIcon,Minus,Trash2}from'lucide-react';")
+          marker="export default function MarketplaceShell()"
+          cart_component="""function CartModal({items,onClose,onRemove,onDecrease,onIncrease}){const total=items.reduce((sum,item)=>sum+Number(item.price||0)*Number(item.quantity||1),0);const count=items.reduce((sum,item)=>sum+Number(item.quantity||1),0);return <div className=\"modal-backdrop\"onClick={onClose}><div className=\"cart-modal\"onClick={e=>e.stopPropagation()}><div className=\"modal-head\"><div><span className=\"eyebrow\">PJD MARKET</span><h2>Mon panier</h2><p>{count} article{count>1?'s':''}</p></div><button type=\"button\"onClick={onClose}aria-label=\"Fermer\"><X/></button></div>{items.length?<><div className=\"cart-items\">{items.map(item=><div className=\"cart-item\"key={item.product_id}><div className=\"cart-item-info\"><div className=\"cart-item-image\">{item.cover_image?<img src={item.cover_image}alt=\"\"/>:<Package size={24}/>}</div><div><b>{item.name}</b><span>{money(item.price)}</span></div></div><div className=\"cart-item-actions\"><div className=\"quantity\"><button type=\"button\"onClick={()=>onDecrease(item.product_id)}aria-label=\"Diminuer\"><Minus size={15}/></button><strong>{item.quantity}</strong><button type=\"button\"onClick={()=>onIncrease(item.product_id)}aria-label=\"Augmenter\"><Plus size={15}/></button></div><button type=\"button\"className=\"cart-remove\"onClick={()=>onRemove(item.product_id)}><Trash2 size={16}/>Supprimer</button></div></div>)}</div><div className=\"cart-total\"><span>Total</span><strong>{money(total)}</strong></div><button className=\"primary\"type=\"button\"onClick={onClose}>Continuer vers le paiement</button></>:<div className=\"empty cart-empty\"><ShoppingCart size={42}/><h3>Votre panier est vide</h3><p>Ajoutez un produit payant pour le retrouver ici.</p><button className=\"secondary\"type=\"button\"onClick={onClose}>Continuer mes achats</button></div>}</div></div>}\n"""
+          s=s.replace(marker,cart_component+marker)
+          old="""const filtered=products.filter(p=>!search||`${p.title} ${p.category} ${p.description||''}`.toLowerCase().includes(search.toLowerCase()));"""
+          handlers="""async function syncCartItem(productId,quantity){if(!session)return;const{data:c}=await supabase.from('carts').select('id').eq('user_id',session.user.id).maybeSingle();if(!c)return;if(quantity<=0)await supabase.from('cart_items').delete().eq('cart_id',c.id).eq('product_id',productId);else await supabase.from('cart_items').upsert({cart_id:c.id,product_id:productId,quantity},{onConflict:'cart_id,product_id'})}function removeFromCart(id){setCart(prev=>prev.filter(x=>x.product_id!==id));syncCartItem(id,0)}function decreaseCart(id){const item=cart.find(x=>x.product_id===id);if(!item)return;if(item.quantity<=1){removeFromCart(id);return}setCart(prev=>prev.map(x=>x.product_id===id?{...x,quantity:x.quantity-1}:x));syncCartItem(id,item.quantity-1)}function increaseCart(id){const item=cart.find(x=>x.product_id===id);if(!item)return;setCart(prev=>prev.map(x=>x.product_id===id?{...x,quantity:x.quantity+1}:x));syncCartItem(id,item.quantity+1)}const cartCount=cart.reduce((sum,item)=>sum+Number(item.quantity||1),0);"""
+          s=s.replace(old,handlers+old)
+          oldbtn='<button className="icon-btn"onClick={()=>setView(\'Catalogue\')}><ShoppingCart/></button>'
+          newbtn='<button className="icon-btn cart-trigger"aria-label="Ouvrir le panier"onClick={()=>setCartOpen(true)}><ShoppingCart/>{cartCount>0&&<span className="cart-badge">{cartCount}</span>}</button>'
+          if oldbtn not in s:
+              raise SystemExit('Cart button pattern not found')
+          s=s.replace(oldbtn,newbtn,1)
+          tail='</div>}'
+          if not s.endswith(tail):
+              raise SystemExit('Unexpected file ending')
+          s=s[:-len(tail)]+'{cartOpen&&<CartModal items={cart}onClose={()=>setCartOpen(false)}onRemove={removeFromCart}onDecrease={decreaseCart}onIncrease={increaseCart}/>}</div>}'
+          p.write_text(s)
+      - name: Commit cart changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/MarketplaceShell.jsx
+          git diff --cached --quiet || git commit -m "Implement functional cart"
+          git push
