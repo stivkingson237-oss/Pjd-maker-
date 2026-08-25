@@ -1,6 +1,8 @@
-name: Build Check
+name: PJD Maker build
 on:
   push:
+    branches: [main]
+  pull_request:
     branches: [main]
   workflow_dispatch:
 jobs:
@@ -11,5 +13,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
       - run: npm install
       - run: npm run build
