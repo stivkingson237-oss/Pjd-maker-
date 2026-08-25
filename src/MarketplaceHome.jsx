@@ -1,18 +1,19 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ShoppingCart, Heart, Download, Star, Package, BookOpen } from "lucide-react";
+import { ShoppingCart, Heart, Download, Star, Package, BookOpen, Search } from "lucide-react";
 import { supabase } from "./lib/supabase";
 
-const money = (v) =>
-  Number(v || 0) === 0
-    ? "Gratuit"
-    : `${Number(v || 0).toLocaleString("fr-FR")} FCFA`;
-
 const ACTIVE = ["approved", "active", "actif"];
+
+const money = (value) =>
+  Number(value || 0) === 0
+    ? "Gratuit"
+    : `${Number(value || 0).toLocaleString("fr-FR")} FCFA`;
+
 const PHYSICAL_RE = /mode|électronique|maison|beauté|alimentation|accessoire|chaussure|vêtement|meuble|matériel|physique/i;
 
-const isDigital = (p) =>
-  Boolean(p?.file_url || p?.file_type) &&
-  !PHYSICAL_RE.test(`${p?.category || ""} ${p?.title || ""}`);
+const isDigital = (product) =>
+  Boolean(product?.file_url || product?.file_type) &&
+  !PHYSICAL_RE.test(`${product?.category || ""} ${product?.title || ""}`);
 
 async function downloadFree(product) {
   if (!product?.file_url) {
@@ -44,15 +45,21 @@ function ProductCard({ product, isFavorite, onFavorite }) {
   return (
     <article className="product-card mh-product-card">
       <div className="mh-art">
-        {product.cover_image ? (
-          <img src={product.cover_image} alt={product.title || "Produit"} loading="lazy" />
+        {product.cover_image || product.image_url ? (
+          <img
+            src={product.cover_image || product.image_url}
+            alt={product.title || "Produit"}
+            loading="lazy"
+          />
         ) : digital ? (
           <BookOpen size={48} />
         ) : (
           <Package size={48} />
         )}
 
-        <span className="mh-type">{digital ? "NUMÉRIQUE" : "PHYSIQUE"}</span>
+        <span className="mh-type">
+          {digital ? "NUMÉRIQUE" : "PHYSIQUE"}
+        </span>
 
         <button
           type="button"
@@ -162,19 +169,24 @@ export default function MarketplaceHome() {
     const term = search.trim().toLowerCase();
     if (!term) return products;
 
-    return products.filter((product) => {
-      const text = `${product.title || ""} ${product.description || ""} ${product.category || ""}`.toLowerCase();
-      return text.includes(term);
-    });
+    return products.filter((product) =>
+      `${product.title || ""} ${product.description || ""} ${product.category || ""}`
+        .toLowerCase()
+        .includes(term)
+    );
   }, [products, search]);
 
-  const toggleFavorite = (product) => {
+  function toggleFavorite(product) {
     setFavorites((current) =>
       current.some((item) => item.id === product.id)
         ? current.filter((item) => item.id !== product.id)
         : [...current, product]
     );
-  };
+  }
+
+  function submitSearch(event) {
+    event.preventDefault();
+  }
 
   return (
     <div className="mh-page">
@@ -185,18 +197,18 @@ export default function MarketplaceHome() {
           <p>
             Découvrez les produits numériques, physiques et services disponibles sur PJD Maker.
           </p>
-          <form
-            className="mh-search"
-            onSubmit={(event) => event.preventDefault()}
-          >
+
+          <form className="mh-search" onSubmit={submitSearch}>
+            <Search size={19} />
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Rechercher un produit, une boutique, un service..."
-              aria-label="Rechercher"
+              aria-label="Rechercher un produit"
             />
             <button type="submit">Rechercher</button>
           </form>
+
           <div className="mh-hero-badges">
             <span>🔒 Paiement sécurisé</span>
             <span>🚚 Livraison</span>
@@ -205,9 +217,20 @@ export default function MarketplaceHome() {
         </div>
       </section>
 
-      <section className="mh-products-area">
+      <section className="mh-products-section">
+        <div className="mh-products-head">
+          <div>
+            <span className="mh-eyebrow-dark">PJD MARKET</span>
+            <h2>Produits disponibles</h2>
+            <p>
+              Retrouvez directement les produits actuellement publiés sur la marketplace.
+            </p>
+          </div>
+          <span className="mh-count">{filteredProducts.length} produit{filteredProducts.length > 1 ? "s" : ""}</span>
+        </div>
+
         {loading ? (
-          <div className="mh-loading">Chargement des produits...</div>
+          <div className="mh-empty">Chargement des produits...</div>
         ) : filteredProducts.length ? (
           <div className="mh-grid">
             {filteredProducts.map((product) => (
@@ -220,10 +243,10 @@ export default function MarketplaceHome() {
             ))}
           </div>
         ) : (
-          <div className="mh-no-products">
-            {search.trim()
+          <div className="mh-empty">
+            {search
               ? "Aucun produit ne correspond à votre recherche."
-              : "Aucun produit disponible pour le moment."}
+              : "Aucun produit publié pour le moment."}
           </div>
         )}
       </section>
