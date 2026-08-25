@@ -1,0 +1,3 @@
+-- Historical migration marker. Production schema is already applied.
+-- Original SQL is not available in the repository; do not replay this marker as schema DDL.
+-- This migration is retained to keep the Git migration timeline aligned with Supabase production.
