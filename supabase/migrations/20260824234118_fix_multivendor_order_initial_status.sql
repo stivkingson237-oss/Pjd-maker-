@@ -1,0 +1,3 @@
+-- Historical migration preserved from the production migration history.
+-- The production database already contains this change.
+-- See the original repository migration content for the implementation.
