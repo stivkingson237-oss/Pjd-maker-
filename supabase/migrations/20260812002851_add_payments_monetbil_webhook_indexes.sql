@@ -1,0 +1,2 @@
+-- Historical migration marker. Production schema is already applied.
+-- Original SQL is not available in the repository.
