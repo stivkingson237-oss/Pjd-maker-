@@ -1,0 +1,1 @@
+-- Historical migration marker. Production schema is already applied.
