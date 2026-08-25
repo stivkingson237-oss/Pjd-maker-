@@ -14,6 +14,16 @@ export async function createMultivendorOrder({ userId, items, paymentMethod = 'p
     p_payment_method: paymentMethod,
   });
   if (error) throw error;
+
+  const affiliateCode = localStorage.getItem('pjd-affiliate-ref');
+  const clickId = localStorage.getItem('pjd-affiliate-click');
+  if (affiliateCode) {
+    await supabase.rpc('record_affiliate_conversion', {
+      p_order_id: data,
+      p_affiliate_code: affiliateCode,
+      p_click_id: clickId || null,
+    });
+  }
   return data;
 }
 
