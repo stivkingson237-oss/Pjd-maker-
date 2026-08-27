@@ -1,13 +1,13 @@
 import React,{useEffect,useState}from'react';
-import{Heart,ShoppingCart,Store,User,Mail,X,UserPlus,Gift}from'lucide-react';
+import{Heart,ShoppingCart,Store,User,Mail,X,UserPlus,Gift,LogIn}from'lucide-react';
 import{supabase}from'./lib/supabase';
 import'./marketplace-topnav.css';
 
-export default function MarketplaceTopNav({session,onOpenCart,onOpenSeller,onOpenAccount,onOpenAffiliate}){
+export default function MarketplaceTopNav({session,onOpenCart,onOpenSeller,onOpenAccount,onOpenAffiliate,onOpenAuth}){
  const[shop,setShop]=useState(null);
  useEffect(()=>{let alive=true;if(!session){setShop(null);return()=>{alive=false}};supabase.from('shops').select('*').eq('owner_id',session.user.id).limit(1).maybeSingle().then(({data})=>{if(alive)setShop(data||null)});const handler=e=>setShop(e.detail||null);window.addEventListener('pjd-shop-updated',handler);return()=>{alive=false;window.removeEventListener('pjd-shop-updated',handler)}},[session?.user?.id]);
  const openShop=()=>{if(shop){window.dispatchEvent(new CustomEvent('pjd-open-shop',{detail:{shopId:shop.id,shop}}));return}onOpenSeller?.(null)};
- return <div className="pjd-topnav"><div className="pjd-topnav-brand"><b>PJD</b><span>MAKER</span></div><div className="pjd-topnav-actions">{session?<><button className="pjd-action"onClick={()=>onOpenAffiliate?.()}><Gift/><span>Affiliation</span></button><button className="pjd-action"onClick={()=>onOpenAccount?.('favorites')}><Heart/><span>Favoris</span></button><button className="pjd-action"onClick={onOpenCart}><ShoppingCart/><span>Panier</span></button><button className="pjd-action pjd-shop"onClick={openShop}><Store/><span>{shop?'Ma boutique':'Créer ma boutique'}</span></button><button className="pjd-action"onClick={()=>onOpenAccount?.('account')}><User/><span>Mon compte</span></button></>:<button className="pjd-action pjd-create-shop"onClick={()=>onOpenSeller?.(null)}><UserPlus/><span>S'inscrire</span></button>}</div></div>;
+ return <div className="pjd-topnav"><div className="pjd-topnav-brand"><b>PJD</b><span>MAKER</span></div><div className="pjd-topnav-actions">{session?<><button className="pjd-action"onClick={()=>onOpenAffiliate?.()}><Gift/><span>Affiliation</span></button><button className="pjd-action"onClick={()=>onOpenAccount?.('favorites')}><Heart/><span>Favoris</span></button><button className="pjd-action"onClick={onOpenCart}><ShoppingCart/><span>Panier</span></button><button className="pjd-action pjd-shop"onClick={openShop}><Store/><span>{shop?'Ma boutique':'Créer ma boutique'}</span></button><button className="pjd-action"onClick={()=>onOpenAccount?.('account')}><User/><span>Mon compte</span></button></>:<><button className="pjd-action"onClick={()=>onOpenAuth?.('login')}><LogIn/><span>Se connecter</span></button><button className="pjd-action pjd-create-shop"onClick={()=>onOpenAuth?.('signup')}><UserPlus/><span>S'inscrire</span></button></>}</div></div>;
 }
 
 export function CreateShopFlow({session,onDone,onClose}){
