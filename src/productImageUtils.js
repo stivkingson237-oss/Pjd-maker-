@@ -2,12 +2,23 @@ export const PRODUCT_IMAGE_WIDTH = 1536;
 export const PRODUCT_IMAGE_HEIGHT = 1024;
 export const PRODUCT_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
 
+function normalizeSupabaseImageUrl(value) {
+  if (!value || typeof value !== 'string') return value;
+  const s = value.trim();
+  if (!s) return null;
+  // Supabase Storage's image render endpoint is more reliable for browser
+  // delivery and keeps the original public bucket permissions.
+  const match = s.match(/^(https?:\/\/[^/]+)\/storage\/v1\/object\/public\/([^/?#]+)\/(.+)$/i);
+  if (match) {
+    const [, origin, bucket, path] = match;
+    return `${origin}/storage/v1/render/image/public/${bucket}/${path}`;
+  }
+  return s;
+}
+
 export function productImageUrl(value) {
   if (!value) return null;
-  if (typeof value === 'string') {
-    const s = value.trim();
-    return s || null;
-  }
+  if (typeof value === 'string') return normalizeSupabaseImageUrl(value);
   if (Array.isArray(value)) {
     for (const item of value) {
       const url = productImageUrl(item);
