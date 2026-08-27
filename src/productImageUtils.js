@@ -21,16 +21,21 @@ export function productImageUrl(value) {
   return null;
 }
 
+export function getProductImageCandidates(product) {
+  if (!product) return [];
+  const values = [product.cover_image, product.image_url, product.image, product.images, product.thumbnail, product.cover];
+  const out = [];
+  const add = value => {
+    if (Array.isArray(value)) return value.forEach(add);
+    const url = productImageUrl(value);
+    if (url && !out.includes(url)) out.push(url);
+  };
+  values.forEach(add);
+  return out;
+}
+
 export function getProductImage(product) {
-  if (!product) return null;
-  return productImageUrl(
-    product.cover_image ||
-    product.image_url ||
-    product.image ||
-    product.images ||
-    product.thumbnail ||
-    product.cover
-  );
+  return getProductImageCandidates(product)[0] || null;
 }
 
 export async function normalizeProductImage(file) {
