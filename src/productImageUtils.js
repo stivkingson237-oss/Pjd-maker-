@@ -2,18 +2,28 @@ export const PRODUCT_IMAGE_WIDTH = 1536;
 export const PRODUCT_IMAGE_HEIGHT = 1024;
 export const PRODUCT_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
 
+const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL || '').replace(/\/$/, '');
+const DEFAULT_PUBLIC_BUCKET = 'public-assets';
+
 function normalizeSupabaseImageUrl(value) {
-  if (!value || typeof value !== 'string') return value;
+  if (!value || typeof value !== 'string') return null;
   const s = value.trim();
   if (!s) return null;
-  // Supabase Storage's image render endpoint is more reliable for browser
-  // delivery and keeps the original public bucket permissions.
-  const match = s.match(/^(https?:\/\/[^/]+)\/storage\/v1\/object\/public\/([^/?#]+)\/(.+)$/i);
-  if (match) {
-    const [, origin, bucket, path] = match;
-    return `${origin}/storage/v1/render/image/public/${bucket}/${path}`;
+  if (/^https?:\/\//i.test(s)) return s;
+  if (SUPABASE_URL && !s.startsWith('data:') && !s.startsWith('blob:')) {
+    const clean = s.replace(/^\/+/, '');
+    if (clean.startsWith('storage/v1/')) return `${SUPABASE_URL}/${clean}`;
+    return `${SUPABASE_URL}/storage/v1/object/public/${DEFAULT_PUBLIC_BUCKET}/${clean}`;
   }
   return s;
+}
+
+function renderUrl(value) {
+  if (!value || typeof value !== 'string') return null;
+  const match = value.trim().match(/^(https?:\/\/[^/]+)\/storage\/v1\/object\/public\/([^/?#]+)\/(.+)$/i);
+  if (!match) return null;
+  const [, origin, bucket, path] = match;
+  return `${origin}/storage/v1/render/image/public/${bucket}/${path}`;
 }
 
 export function productImageUrl(value) {
@@ -38,8 +48,12 @@ export function getProductImageCandidates(product) {
   const out = [];
   const add = value => {
     if (Array.isArray(value)) return value.forEach(add);
+    if (value && typeof value === 'object') return add(value.url || value.publicUrl || value.public_url || value.src || value.path || value.image_url || value.cover_image);
     const url = productImageUrl(value);
-    if (url && !out.includes(url)) out.push(url);
+    if (!url || out.includes(url)) return;
+    out.push(url);
+    const rendered = renderUrl(url);
+    if (rendered && !out.includes(rendered)) out.push(rendered);
   };
   values.forEach(add);
   return out;
