@@ -1,6 +1,18 @@
 import { supabase } from './supabase';
 
-export async function createMultivendorOrder({ userId, items, paymentMethod = 'pending' }) {
+export async function validatePromoCode({ code, userId, subtotal }) {
+  if (!userId) throw new Error('Connexion requise pour utiliser un code promo.');
+  const { data, error } = await supabase.rpc('validate_promo_code', {
+    p_code: String(code || '').trim().toUpperCase(),
+    p_user_id: userId,
+    p_subtotal: Number(subtotal || 0),
+  });
+  if (error) throw error;
+  if (!data?.valid) throw new Error(data?.message || 'Code promo invalide.');
+  return data;
+}
+
+export async function createMultivendorOrder({ userId, items, paymentMethod = 'pending', promoCode = null }) {
   if (!userId) throw new Error('Connexion requise pour commander.');
   const cleanItems = (items || []).map((item) => ({
     product_id: item.product_id,
@@ -12,6 +24,7 @@ export async function createMultivendorOrder({ userId, items, paymentMethod = 'p
     p_user_id: userId,
     p_items: cleanItems,
     p_payment_method: paymentMethod,
+    p_promo_code: promoCode || null,
   });
   if (error) throw error;
 
