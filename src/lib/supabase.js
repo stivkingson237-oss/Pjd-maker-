@@ -1,7 +1,21 @@
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://lrlukgkaarzuqotefhlc.supabase.co';
-const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_zkGGMilXntgSTG8ajxi1rQ_bdvm-Ogs';
+const DEFAULT_SUPABASE_URL = 'https://lrlukgkaarzuqotefhlc.supabase.co';
+const DEFAULT_SUPABASE_KEY = 'sb_publishable_zkGGMilXntgSTG8ajxi1rQ_bdvm-Ogs';
+
+// Vercel can contain an empty or malformed VITE_SUPABASE_URL. Never pass an
+// invalid value to createClient because that crashes the whole React app.
+function validHttpUrl(value) {
+  try {
+    const url = new URL(String(value || '').trim());
+    return (url.protocol === 'https:' || url.protocol === 'http:') ? url.toString().replace(/\/$/, '') : null;
+  } catch {
+    return null;
+  }
+}
+
+const SUPABASE_URL = validHttpUrl(import.meta.env.VITE_SUPABASE_URL) || DEFAULT_SUPABASE_URL;
+const SUPABASE_KEY = String(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '').trim() || DEFAULT_SUPABASE_KEY;
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
@@ -9,7 +23,6 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
 
 // Product records store the Storage object path (not a browser URL) in file_url.
 // Convert that path into a short-lived signed URL when the app fetches it.
-// This keeps product-files private while allowing authenticated buyers to download.
 if (typeof window !== 'undefined' && !window.__pjdStorageFetchPatched) {
   const nativeFetch = window.fetch.bind(window);
   window.fetch = async (input, init) => {
