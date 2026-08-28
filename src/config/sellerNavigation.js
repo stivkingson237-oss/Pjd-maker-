@@ -11,7 +11,6 @@ export const SELLER_NAVIGATION = [
   { id: 'loyalty', label: '🎁 Fidélité', domain: 'growth' },
   { id: 'referral', label: '🚀 Parrainage', domain: 'growth' },
   { id: 'ads', label: '📢 PJD Ads', domain: 'growth' },
-  { id: 'ai', label: '🤖 PJD AI', domain: 'growth' },
   { id: 'opportunities', label: '💡 Opportunités', domain: 'growth' },
   { id: 'notifications', label: '🔔 Notifications', domain: 'communication' },
   { id: 'settings', label: '⚙️ Paramètres', domain: 'settings' },
