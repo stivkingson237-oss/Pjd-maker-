@@ -5,7 +5,7 @@ const GROUPS = [
   ['Général', ['dashboard','shop']],
   ['Catalogue', ['products','stock','orders','crm']],
   ['Activité', ['messages','finance','notifications']],
-  ['Développement', ['marketing','loyalty','referral','ads','ai','opportunities']],
+  ['Développement', ['marketing','loyalty','referral','ads','opportunities']],
   ['Configuration', ['settings']],
 ];
 
