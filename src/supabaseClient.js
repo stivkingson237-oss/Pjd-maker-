@@ -1,13 +1,26 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+// Production-safe Supabase configuration.
+// Do not allow an invalid Vercel/Vite environment variable to crash the app.
+const FALLBACK_SUPABASE_URL = 'https://lrlukgkaarzuqotefhlc.supabase.co';
+const FALLBACK_SUPABASE_KEY = 'sb_publishable_zkGGMilXntgSTG8ajxi1rQ_bdvm-Ogs';
 
-if (!supabaseUrl || !supabaseKey) {
-  console.warn('Supabase environment variables are missing: VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY');
-}
+const envUrl = import.meta.env?.VITE_SUPABASE_URL;
+const envKey = import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-export const supabase = createClient(supabaseUrl || 'https://placeholder.supabase.co', supabaseKey || 'placeholder-key', {
+const isValidHttpUrl = (value) => {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+};
+
+const supabaseUrl = isValidHttpUrl(envUrl) ? envUrl : FALLBACK_SUPABASE_URL;
+const supabaseKey = typeof envKey === 'string' && envKey.trim() ? envKey : FALLBACK_SUPABASE_KEY;
+
+export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
