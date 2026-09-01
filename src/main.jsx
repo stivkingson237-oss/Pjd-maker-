@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import './responsive.css';
 import './marketplace.css';
 import './marketplace-extra.css';
+import './product-detail.css';
 import './interface-overrides.css';
 import './ai/ai-modern.css';
 
