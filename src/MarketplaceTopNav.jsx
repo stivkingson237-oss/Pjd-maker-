@@ -6,7 +6,7 @@ export default function MarketplaceTopNav({session,shop,onOpenAffiliate,onOpenAc
  const[cartCount,setCartCount]=useState(0),[cartPulse,setCartPulse]=useState(false),[cartNotice,setCartNotice]=useState("");
  useEffect(()=>{
   const read=()=>{try{const c=JSON.parse(localStorage.getItem("pjd-cart")||"[]");setCartCount(c.reduce((n,x)=>n+Number(x.quantity||0),0))}catch{setCartCount(0)}};
-  const added=e=>{read();setCartPulse(true);setTimeout(()=>setCartPulse(false),450);const p=e.detail?.product;setCartNotice(`✓ ${p?.name||p?.title||"Produit"} ajouté au panier`);setTimeout(()=>setCartNotice(""),1800)};
+  const added=e=>{read();setCartPulse(true);setTimeout(()=>setCartPulse(false),450);const p=e.detail?.product;setCartNotice(`✓ ${p?.name||p?.title||"Produit"} ajouté au panier`);setTimeout(()=>setCartNotice(""),1800);setTimeout(()=>window.dispatchEvent(new CustomEvent("pjd-open-cart")),60)};
   read();window.addEventListener("storage",read);window.addEventListener("pjd-cart-updated",added);
   const timer=setInterval(read,500);
   return()=>{window.removeEventListener("storage",read);window.removeEventListener("pjd-cart-updated",added);clearInterval(timer)};
