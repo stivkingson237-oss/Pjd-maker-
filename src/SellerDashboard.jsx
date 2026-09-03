@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { BarChart3, Boxes, Image as ImageIcon, PackagePlus, Save, ShoppingBag, TrendingUp, Upload, Wallet, Percent, Loader2, CheckCircle2, X } from 'lucide-react';
+import { BarChart3, Boxes, Image as ImageIcon, PackagePlus, Save, ShoppingBag, TrendingUp, Upload, Wallet, Percent, Loader2, CheckCircle2, X, Gift } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import './seller.css';
 
@@ -11,6 +11,7 @@ export default function SellerDashboard({ session, shop, activeTab = 'dashboard'
   const [tab, setTab] = useState(activeTab);
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [wallet, setWallet] = useState({ balance:0, pending_balance:0, currency:'XAF' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
@@ -25,12 +26,14 @@ export default function SellerDashboard({ session, shop, activeTab = 'dashboard'
     setLoading(true); setMsg('');
     const uid = session.user.id;
     try {
-      const [digital, physical] = await Promise.all([
+      const [digital, physical, walletResult] = await Promise.all([
         supabase.from('digital_products').select('*').eq('seller_id', uid).order('created_at', { ascending:false }),
-        supabase.from('marketplace_products').select('*').eq('seller_id', uid).order('created_at', { ascending:false })
+        supabase.from('marketplace_products').select('*').eq('seller_id', uid).order('created_at', { ascending:false }),
+        supabase.from('seller_wallets').select('balance,pending_balance,currency').eq('user_id', uid).maybeSingle()
       ]);
       if (digital.error) throw digital.error;
       if (physical.error) throw physical.error;
+      setWallet(walletResult.data || { balance:0, pending_balance:0, currency:'XAF' });
       setProducts([...(digital.data || []).map(p => ({ ...p, product_type:'digital' })), ...(physical.data || []).map(p => ({ ...p, product_type:'physical' }))]);
       try {
         const oi = await supabase.from('order_items').select('order_id,name,price,unit_price,line_total,quantity,commission,seller_net').eq('seller_id', uid);
@@ -52,8 +55,9 @@ export default function SellerDashboard({ session, shop, activeTab = 'dashboard'
     const revenue = valid.reduce((s,o) => s + (o.items || []).reduce((a,i) => a + line(i), 0), 0);
     const commission = valid.reduce((s,o) => s + (o.items || []).reduce((a,i) => a + Number(i.commission || 0), 0), 0);
     const units = valid.reduce((s,o) => s + (o.items || []).reduce((a,i) => a + Number(i.quantity || 1), 0), 0);
-    const withdrawn = valid.reduce((s,o) => s + (o.items || []).reduce((a,i) => a + Math.max(0, Number(i.seller_net ?? (line(i) - Number(i.commission || 0)))), 0), 0);
-    return { revenue, commission, net:revenue - commission, withdrawable:withdrawn, units, orders:valid.length, avg:valid.length ? revenue / valid.length : 0 };
+    const freeSales = valid.reduce((s,o) => s + (o.items || []).reduce((a,i) => a + (line(i) === 0 ? Number(i.quantity || 1) : 0), 0), 0);
+    const net = valid.reduce((s,o) => s + (o.items || []).reduce((a,i) => a + Math.max(0, Number(i.seller_net ?? (line(i) - Number(i.commission || 0)))), 0), 0);
+    return { revenue, commission, net, units, freeSales, orders:valid.length, avg:valid.length ? revenue / valid.length : 0 };
   }, [orders]);
 
   const update = (key, value) => setForm(f => ({ ...f, [key]:value }));
@@ -87,8 +91,8 @@ export default function SellerDashboard({ session, shop, activeTab = 'dashboard'
     const r = await supabase.from(table).update(changes).eq('id', p.id).eq('seller_id', session.user.id); setMsg(r.error ? `Prix : ${r.error.message}` : 'Prix enregistré.'); if (!r.error) await load(); setSaving(false);
   }
 
-  if (tab === 'dashboard') return <Dashboard stats={stats} products={products} loading={loading} refresh={load} />;
-  if (tab === 'finance') return <Simple title="Revenus & solde" icon={<Wallet size={30} />}><FinanceCards stats={stats} /></Simple>;
+  if (tab === 'dashboard') return <Dashboard stats={stats} products={products} wallet={wallet} loading={loading} refresh={load} />;
+  if (tab === 'finance') return <Simple title="Revenus & solde" icon={<Wallet size={30} />}><FinanceCards stats={stats} wallet={wallet} /></Simple>;
   if (tab === 'stock') return <Simple title="Gestion du stock" icon={<Boxes size={30} />}><div>{products.map(p => <div key={`${p.product_type}:${p.id}`} style={{display:'flex',justifyContent:'space-between',padding:12,borderBottom:'1px solid #eee'}}><span>{p.title}</span><b>{Number(p.stock || 0)} unité(s)</b></div>)}</div></Simple>;
   if (tab !== 'products') return <Simple title="Espace vendeur" icon={<Boxes size={30} />}><p>Utilisez le menu vendeur pour accéder aux produits, revenus et stock.</p></Simple>;
 
@@ -96,6 +100,6 @@ export default function SellerDashboard({ session, shop, activeTab = 'dashboard'
 }
 
 function Simple({title,icon,children}) { return <div className="seller-card wide-card"><div className="page-title"><div><span className="eyebrow">ESPACE VENDEUR</span><h2>{title}</h2></div>{icon}</div>{children}</div>; }
-function FinanceCards({stats}) { return <div style={{display:'grid',gap:16}}><div style={{padding:22,borderRadius:18,background:'#111',color:'#fff',display:'flex',justifyContent:'space-between',alignItems:'center',gap:16,flexWrap:'wrap'}}><div><small style={{opacity:.7}}>SOLDE DISPONIBLE</small><div style={{fontSize:30,fontWeight:900,marginTop:6}}>{money(stats.withdrawable)}</div><small style={{opacity:.72}}>Montant actuellement retirable après commissions.</small></div><button style={{border:0,borderRadius:11,padding:'12px 16px',fontWeight:900,cursor:'pointer'}}>Retirer mes revenus</button></div><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:12}}>{[['Ventes',stats.revenue,TrendingUp],['Commissions prélevées',stats.commission,Percent],['Revenus nets',stats.net,Wallet],['Commandes',stats.orders,ShoppingBag],['Panier moyen',stats.avg,BarChart3],['Unités vendues',stats.units,PackagePlus]].map(([label,value,Icon]) => <div key={label} style={{padding:16,border:'1px solid #e5e7eb',borderRadius:14,background:'#fff'}}><Icon size={18} /><small style={{display:'block',marginTop:5}}>{label}</small><strong>{label === 'Commandes' || label === 'Unités vendues' ? Number(value).toLocaleString('fr-FR') : money(value)}</strong></div>)}</div><div style={{padding:14,borderRadius:12,background:'#f5f7fa'}}><b>Analyse des commissions</b><p style={{margin:'6px 0 0',color:'#667085'}}>Les commissions prélevées sont séparées des ventes. Le solde disponible correspond aux montants nets des ventes enregistrées.</p></div></div>; }
-function Cards({stats}) { return <FinanceCards stats={stats} />; }
-function Dashboard({stats,products,loading,refresh}) { return <Simple title="Tableau de bord — Analyse" icon={<BarChart3 size={30} />}><button className="primary" onClick={refresh} style={{marginBottom:14}}><BarChart3 size={17} /> Actualiser les analyses</button>{loading ? <p>Chargement des analyses…</p> : <><Cards stats={stats} /><div style={{marginTop:14,padding:14,borderRadius:12,background:'#f5f7fa'}}><b>{products.length}</b> produit(s) au catalogue.</div>{stats.orders === 0 ? <p style={{color:'#667085'}}>Aucune commande vendue pour le moment. Les analyses se rempliront automatiquement dès les premières ventes.</p> : null}</>}</Simple>; }
+function FinanceCards({stats,wallet}) { return <div style={{display:'grid',gap:16}}><div style={{padding:22,borderRadius:18,background:'#111',color:'#fff',display:'flex',justifyContent:'space-between',alignItems:'center',gap:16,flexWrap:'wrap'}}><div><small style={{opacity:.7}}>SOLDE DISPONIBLE À RETIRER</small><div style={{fontSize:30,fontWeight:900,marginTop:6}}>{money(wallet.balance)}</div><small style={{opacity:.72}}>Solde réel du portefeuille vendeur, après les commissions.</small></div><button style={{border:0,borderRadius:11,padding:'12px 16px',fontWeight:900,cursor:'pointer'}}>Retirer mes revenus</button></div>{Number(wallet.pending_balance||0)>0&&<div style={{padding:14,borderRadius:12,background:'#fff7ed',border:'1px solid #fed7aa'}}><b>Solde en attente : {money(wallet.pending_balance)}</b><div style={{marginTop:4,color:'#9a3412',fontSize:13}}>Ce montant n'est pas encore disponible au retrait.</div></div>}<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:12}}>{[['Ventes',stats.revenue,TrendingUp],['Commissions prélevées',stats.commission,Percent],['Revenus nets',stats.net,Wallet],['Ventes gratuites',stats.freeSales,Gift],['Commandes',stats.orders,ShoppingBag],['Unités vendues',stats.units,PackagePlus]].map(([label,value,Icon]) => <div key={label} style={{padding:16,border:'1px solid #e5e7eb',borderRadius:14,background:'#fff'}}><Icon size={18} /><small style={{display:'block',marginTop:5}}>{label}</small><strong>{label === 'Commandes' || label === 'Unités vendues' || label === 'Ventes gratuites' ? Number(value).toLocaleString('fr-FR') : money(value)}</strong></div>)}</div><div style={{padding:16,borderRadius:14,background:'#f5f7fa'}}><b>Analyse des produits et commissions</b><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:10,marginTop:12}}><div><small>Produits au catalogue</small><strong style={{display:'block',fontSize:22}}>{stats.productCount || 0}</strong></div><div><small>Commissions prélevées</small><strong style={{display:'block',fontSize:22}}>{money(stats.commission)}</strong></div><div><small>Ventes gratuites</small><strong style={{display:'block',fontSize:22}}>{Number(stats.freeSales||0).toLocaleString('fr-FR')}</strong></div></div><p style={{margin:'10px 0 0',color:'#667085'}}>Les ventes et commissions sont analysées séparément ; le solde disponible affiché en haut provient du portefeuille vendeur.</p></div></div>; }
+function Cards({stats,wallet}) { return <FinanceCards stats={stats} wallet={wallet} />; }
+function Dashboard({stats,products,wallet,loading,refresh}) { const data={...stats,productCount:products.length}; return <Simple title="Tableau de bord — Analyse" icon={<BarChart3 size={30} />}><button className="primary" onClick={refresh} style={{marginBottom:14}}><BarChart3 size={17} /> Actualiser les analyses</button>{loading ? <p>Chargement des analyses…</p> : <><Cards stats={data} wallet={wallet} /><div style={{marginTop:14,padding:14,borderRadius:12,background:'#f5f7fa'}}><b>{products.length}</b> produit(s) au catalogue.</div>{stats.orders === 0 ? <p style={{color:'#667085'}}>Aucune commande vendue pour le moment. Les analyses se rempliront automatiquement dès les premières ventes.</p> : null}</>}</Simple>; }
