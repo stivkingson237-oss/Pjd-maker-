@@ -1,11 +1,17 @@
 import { supabase } from './supabase';
 
-export async function validatePromoCode({ code, userId, subtotal }) {
+export async function validatePromoCode({ code, userId, subtotal, items = [] }) {
   if (!userId) throw new Error('Connexion requise pour utiliser un code promo.');
+  const cleanItems = (items || []).map((item) => ({
+    product_id: item.product_id ?? item.id,
+    quantity: Math.max(1, Number(item.quantity || 1)),
+    product_type: String(item.product_type ?? item.type ?? item.source_type ?? '').toLowerCase(),
+  })).filter((item) => item.product_id);
   const { data, error } = await supabase.rpc('validate_promo_code', {
     p_code: String(code || '').trim().toUpperCase(),
     p_user_id: userId,
     p_subtotal: Number(subtotal || 0),
+    p_items: cleanItems,
   });
   if (error) throw error;
   if (!data?.valid) throw new Error(data?.message || 'Code promo invalide.');
@@ -17,6 +23,7 @@ export async function createMultivendorOrder({ userId, items, paymentMethod = 'p
   const cleanItems = (items || []).map((item) => ({
     product_id: item.product_id,
     quantity: Math.max(1, Number(item.quantity || 1)),
+    product_type: String(item.product_type ?? item.type ?? item.source_type ?? '').toLowerCase(),
   })).filter((item) => item.product_id);
   if (!cleanItems.length) throw new Error('Votre panier est vide.');
 
