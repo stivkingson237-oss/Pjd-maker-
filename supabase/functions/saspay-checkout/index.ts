@@ -10,6 +10,13 @@ const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS" };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
 
+function normalizeCameroonPhone(value: unknown) {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (/^6\d{8}$/.test(digits)) return `237${digits}`;
+  if (/^2376\d{8}$/.test(digits)) return digits;
+  return "";
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "Méthode non autorisée." }, 405);
@@ -23,10 +30,10 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     const orderId = String(body.orderId || "").trim();
-    const phone = String(body.phone || "").replace(/\D/g, "");
+    const phone = normalizeCameroonPhone(body.phone);
     const operator = String(body.operator || "").toUpperCase();
     if (!orderId) return json({ error: "orderId requis." }, 400);
-    if (!/^2376\d{8}$/.test(phone)) return json({ error: "Numéro camerounais invalide. Utilisez 6XXXXXXXX." }, 400);
+    if (!phone) return json({ error: "Numéro camerounais invalide. Utilisez 6XXXXXXXX ou 2376XXXXXXXX." }, 400);
     const network = operator === "MTN" ? "mtn_cm" : operator === "ORANGE" ? "orange_cm" : "";
     if (!network) return json({ error: "Choisissez MTN Mobile Money ou Orange Money." }, 400);
 
@@ -46,7 +53,12 @@ Deno.serve(async (req) => {
     const payload = {
       amount: amount.toFixed(2), currency: "XAF", country: "CM", network,
       description: `PJD Maker - Commande ${orderId}`,
-      customer: { email: user.email || "", first_name: String(user.user_metadata?.first_name || user.user_metadata?.name || "Client"), last_name: String(user.user_metadata?.last_name || "PJD Maker"), phone },
+      customer: {
+        email: user.email || "",
+        first_name: String(user.user_metadata?.first_name || user.user_metadata?.name || "Client"),
+        last_name: String(user.user_metadata?.last_name || "PJD Maker"),
+        phone
+      },
       metadata: { order_id: orderId, pjd_order_id: orderId }
     };
 
@@ -56,7 +68,7 @@ Deno.serve(async (req) => {
     if (!r.ok) return json({ error: response?.error?.message || response?.message || "SasPay a refusé le paiement.", code: response?.error?.code || response?.code || "saspay_error" }, 502);
 
     const data = response?.data || response;
-    const paymentId = String(data?.id || "").trim();
+    const paymentId = String(data?.id || data?.payment_id || data?.transaction_id || data?.reference || "").trim();
     if (!paymentId) return json({ error: "SasPay n'a pas retourné d'identifiant de paiement." }, 502);
 
     const paymentPayload = {
