@@ -2,6 +2,7 @@ import React,{useEffect,useMemo,useState}from"react";
 import{Heart,Download,Star,Package,BookOpen,Search,ShoppingCart,ChevronRight,SlidersHorizontal,Flame,Sparkles,Tag,Store,X,MapPin}from"lucide-react";
 import{supabase}from"./lib/supabase";
 import{getProductImageCandidates}from"./productImageUtils";
+import"./product-image-fix.css";
 const ACTIVE=["approved","active","actif"];
 const money=v=>Number(v||0)===0?"Gratuit":`${Number(v||0).toLocaleString("fr-FR")} FCFA`;
 const isDigital=p=>p?.product_type==="digital"||p?.source_type==="digital";
