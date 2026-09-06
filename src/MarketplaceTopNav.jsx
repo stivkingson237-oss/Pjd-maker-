@@ -53,7 +53,7 @@ export default function MarketplaceTopNav({ session, shop, onOpenAffiliate, onOp
       <MultiVendorCheckout session={session} />
       <style>{`@keyframes pjdCartPulse{0%{transform:scale(1)}35%{transform:scale(1.16)}65%{transform:scale(.94)}100%{transform:scale(1)}}@keyframes pjdBadgePop{0%{transform:scale(.4);opacity:0}70%{transform:scale(1.12);opacity:1}100%{transform:scale(1);opacity:1}}@keyframes pjdNoticeIn{from{transform:translateY(12px);opacity:0}to{transform:translateY(0);opacity:1}}.pjd-cart-action{position:relative}.pjd-cart-action.pjd-pulse svg{animation:pjdCartPulse .45s ease}.pjd-cart-badge{position:absolute;top:-7px;right:-7px;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:#f97316;color:#fff;border:2px solid #fff;font:800 11px/16px Inter,system-ui,sans-serif;text-align:center;z-index:3;animation:pjdBadgePop .28s ease}.pjd-cart-notice{position:fixed;right:16px;bottom:18px;z-index:100000;background:#111827;color:#fff;padding:12px 16px;border-radius:14px;box-shadow:0 12px 35px rgba(0,0,0,.25);font:800 14px/1.3 Inter,system-ui,sans-serif;animation:pjdNoticeIn .25s ease}`}</style>
       <div className="pjd-topnav">
-        <div className="pjd-topnav-brand"><b>PJD</b><span>MAKER</span></div>
+        <div className="pjd-topnav-brand"><b>PJD</b><span>MARKET</span></div>
         <div className="pjd-topnav-actions">
           {session ? (
             <>
@@ -249,7 +249,7 @@ export function CreateShopFlow({ session, onDone, onClose }) {
           <div>
             <div className="pjd-flow-title"><UserPlus /><span>Inscription</span></div>
             <h2>Créez votre compte</h2>
-            <p>Inscrivez-vous pour accéder à votre compte PJD Maker.</p>
+            <p>Inscrivez-vous pour accéder à votre compte PJD Market.</p>
             <form onSubmit={signup}>
               <label>E-mail<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required /></label>
               <label>Mot de passe<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} minLength={6} required /></label>
