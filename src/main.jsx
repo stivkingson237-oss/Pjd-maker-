@@ -8,6 +8,7 @@ import './interface-overrides.css';
 import './ai/ai-modern.css';
 
 const App = React.lazy(() => import('./App.jsx'));
+const PaymentConfirmationOverlay = React.lazy(() => import('./PaymentConfirmationOverlay.jsx'));
 
 class AppErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { error: null }; }
@@ -20,4 +21,4 @@ class AppErrorBoundary extends React.Component {
   }
 }
 function LoadingScreen() { return React.createElement('div', { style: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f7f8fa', color: '#111827', fontFamily: 'system-ui, sans-serif' } }, React.createElement('div', { style: { textAlign: 'center' } }, React.createElement('div', { style: { fontSize: 32, fontWeight: 900 } }, 'PJD Maker'), React.createElement('div', { style: { marginTop: 8, opacity: .7 } }, 'Chargement…'))); }
-createRoot(document.getElementById('root')).render(React.createElement(React.StrictMode, null, React.createElement(AppErrorBoundary, null, React.createElement(Suspense, { fallback: React.createElement(LoadingScreen) }, React.createElement(App)))));
+createRoot(document.getElementById('root')).render(React.createElement(React.StrictMode, null, React.createElement(AppErrorBoundary, null, React.createElement(Suspense, { fallback: React.createElement(LoadingScreen) }, React.createElement(React.Fragment, null, React.createElement(App), React.createElement(PaymentConfirmationOverlay))))));
