@@ -123,7 +123,17 @@ export default function App() {
       event.stopPropagation(); downloadProductByTitle(button.closest('.product-card')?.querySelector('h3')?.textContent?.trim()); return;
     }
     const productCard = event.target.closest?.('.product-card');
-    if (productCard && !event.target.closest('button')) { openProductByTitle(productCard.querySelector('h3')?.textContent?.trim()); return; }
+    if (productCard && !button) {
+      const title = productCard.querySelector('h3')?.textContent?.trim();
+      if (screen === 'public-shop') {
+        const shopProduct = productCard.__pjdProduct;
+        if (shopProduct) window.dispatchEvent(new CustomEvent('pjd-add-to-cart', { detail: shopProduct }));
+        else if (title) openProductByTitle(title);
+      } else if (title) {
+        openProductByTitle(title);
+      }
+      return;
+    }
     if (!button) return;
     const text = (button.textContent || '').toLowerCase();
     if (text.includes('toutes les fonctionnalités')) setScreen('features');
@@ -221,14 +231,17 @@ export default function App() {
     if (screen === 'promo-codes') return <PromoCodesPage session={accountSession} onBack={() => setScreen('admin')} />;
     if (screen === 'profile-settings') return <ProfileSettings onBack={() => setScreen('account')} />;
     if (screen === 'account') return <AccountPage session={accountSession} initialSection={accountSection} onBack={() => setScreen('market')} />;
-    return <><MarketplaceHome /><MultiVendorCheckout session={accountSession} /></>;
+    return <MarketplaceHome />;
   };
+
+  const showMarketplaceNav = !isShopsWindow && (screen === 'market' || screen === 'public-shop');
 
   return (
     <AuthGate onSessionChange={handleAuthSession}>
       {!isShopsWindow && <PhotoPickerEnhancer session={accountSession} />}
-      {!isShopsWindow && screen === 'market' && <MarketplaceTopNav session={accountSession} onOpenCart={openCart} onOpenSeller={openSeller} onOpenAccount={(section) => section === 'favorites' ? setScreen('favorites') : openAccount(section)} onOpenAffiliate={() => setScreen('affiliate')} onOpenAuth={(mode) => setAuthMode(mode)} />}
+      {showMarketplaceNav && <MarketplaceTopNav session={accountSession} onOpenCart={openCart} onOpenSeller={openSeller} onOpenAccount={(section) => section === 'favorites' ? setScreen('favorites') : openAccount(section)} onOpenAffiliate={() => setScreen('affiliate')} onOpenAuth={(mode) => setAuthMode(mode)} />}
       <div onClickCapture={handleClick}>{renderScreen()}</div>
+      {!isShopsWindow && <MultiVendorCheckout session={accountSession} />}
       {!isShopsWindow && showUploader && <DigitalProductUploader session={accountSession} shop={shop} onClose={() => setShowUploader(false)} onSaved={() => setShowUploader(false)} />}
       {!isShopsWindow && showAIPublisher && <PublicationAssistant onClose={() => setShowAIPublisher(false)} onPublished={async (data) => { try { const row = await saveAIDraft(data); alert(`Produit « ${row.title} » enregistré en brouillon dans votre catalogue.`); } catch (error) { alert(error.message || 'Impossible d’enregistrer le produit'); } }} />}
       {!isShopsWindow && showAICenter && <AICenter onClose={() => setShowAICenter(false)} />}
