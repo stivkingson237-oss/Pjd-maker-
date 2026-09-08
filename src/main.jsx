@@ -6,6 +6,7 @@ import './marketplace-extra.css';
 import './product-detail.css';
 import './interface-overrides.css';
 import './ai/ai-modern.css';
+import './pjd-market-fix.css';
 
 const App = React.lazy(() => import('./App.jsx'));
 const PaymentConfirmationOverlay = React.lazy(() => import('./PaymentConfirmationOverlay.jsx'));
