@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Heart, ShoppingCart, Store, User, LogIn, UserPlus, Gift, Mail, X } from "lucide-react";
+import { Heart, ShoppingCart, Store, User, LogIn, UserPlus, Gift, Mail, X, ShieldCheck } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import MultiVendorCheckout from "./MultiVendorCheckout";
 import AllShopsPage from "./AllShopsPage";
@@ -10,6 +10,18 @@ export default function MarketplaceTopNav({ session, shop, onOpenAffiliate, onOp
   const [cartPulse, setCartPulse] = useState(false);
   const [cartNotice, setCartNotice] = useState("");
   const [boutiquesTarget, setBoutiquesTarget] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    async function loadRole() {
+      if (!session?.user?.id) { if (alive) setIsAdmin(false); return; }
+      const { data } = await supabase.from("users").select("role").eq("id", session.user.id).maybeSingle();
+      if (alive) setIsAdmin(data?.role === "admin" || session.user.user_metadata?.role === "admin");
+    }
+    loadRole();
+    return () => { alive = false; };
+  }, [session?.user?.id]);
 
   useEffect(() => {
     const read = () => { try { const cart = JSON.parse(localStorage.getItem("pjd-cart") || "[]"); setCartCount(cart.reduce((total, item) => total + Number(item.quantity || 0), 0)); } catch { setCartCount(0); } };
@@ -36,7 +48,11 @@ export default function MarketplaceTopNav({ session, shop, onOpenAffiliate, onOp
     return () => { observer?.disconnect(); if (slot?.parentNode) slot.parentNode.removeChild(slot); setBoutiquesTarget(null); };
   }, []);
 
-  const openShop = () => { if (shop) { window.dispatchEvent(new CustomEvent("pjd-open-shop", { detail: { shopId: shop.id, shop } })); return; } onOpenSeller?.(null); };
+  const openShop = () => {
+    if (isAdmin) return;
+    if (shop) { window.dispatchEvent(new CustomEvent("pjd-open-shop", { detail: { shopId: shop.id, shop } })); return; }
+    onOpenSeller?.(null);
+  };
   const openAllShops = () => {
     const url = `${window.location.origin}${window.location.pathname}?pjd_shops_window=1`;
     window.open(url, "pjd-market-boutiques", "noopener,noreferrer");
@@ -85,7 +101,11 @@ export default function MarketplaceTopNav({ session, shop, onOpenAffiliate, onOp
           <button className="pjd-action" onClick={() => onOpenAffiliate?.()}><Gift /><span>Affiliation</span></button>
           <button className="pjd-action" onClick={() => onOpenAccount?.("favorites")}><Heart /><span>Favoris</span></button>
           <button className={`pjd-action pjd-cart-action ${cartPulse ? "pjd-pulse" : ""}`} onClick={onOpenCart}><ShoppingCart />{cartCount > 0 && <span className="pjd-cart-badge">{cartCount > 99 ? "99+" : cartCount}</span>}<span>Panier</span></button>
-          <button className="pjd-action pjd-shop" onClick={openShop}><Store /><span>{shop ? "Ma boutique" : "Créer ma boutique"}</span></button>
+          {isAdmin ? (
+            <button className="pjd-action pjd-admin" onClick={() => window.dispatchEvent(new CustomEvent("pjd-open-admin"))}><ShieldCheck /><span>Administration</span></button>
+          ) : (
+            <button className="pjd-action pjd-shop" onClick={openShop}><Store /><span>{shop ? "Ma boutique" : "Créer ma boutique"}</span></button>
+          )}
           <button className="pjd-action" onClick={() => onOpenAccount?.("account")}><User /><span>Mon compte</span></button>
         </> : <>
           <button className="pjd-action" onClick={() => onOpenAuth?.("login")}><LogIn /><span>Connexion</span></button>
