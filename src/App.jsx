@@ -7,6 +7,8 @@ import SellerDashboard from './SellerDashboard.jsx';
 import SellerProductManager from './SellerProductManager.jsx';
 import ShopManager from './ShopManager.jsx';
 import AdminDashboard from './AdminDashboard.jsx';
+import ShopCertification from './ShopCertification.jsx';
+import ShopVerificationAdmin from './ShopVerificationAdmin.jsx';
 import PromoCodesPage from './PromoCodesPage.jsx';
 import AccountPage from './AccountPage.jsx';
 import ProfileSettings from './ProfileSettings.jsx';
@@ -72,8 +74,6 @@ export default function App() {
     return () => window.removeEventListener('pjd-shop-updated', handler);
   }, [accountSession?.user?.id]);
 
-  // MarketplaceTopNav is rendered outside the main click-capture container.
-  // Listen directly to the custom event emitted by the Administration button.
   useEffect(() => {
     const handler = () => setScreen('admin');
     window.addEventListener('pjd-open-admin', handler);
@@ -87,6 +87,12 @@ export default function App() {
     };
     window.addEventListener('pjd-open-shop', handler);
     return () => window.removeEventListener('pjd-open-shop', handler);
+  }, []);
+
+  useEffect(() => {
+    const handler = () => setScreen('certification');
+    window.addEventListener('pjd-open-certification', handler);
+    return () => window.removeEventListener('pjd-open-certification', handler);
   }, []);
 
   useEffect(() => {
@@ -137,9 +143,7 @@ export default function App() {
         const shopProduct = productCard.__pjdProduct;
         if (shopProduct) window.dispatchEvent(new CustomEvent('pjd-add-to-cart', { detail: shopProduct }));
         else if (title) openProductByTitle(title);
-      } else if (title) {
-        openProductByTitle(title);
-      }
+      } else if (title) openProductByTitle(title);
       return;
     }
     if (!button) return;
@@ -216,6 +220,7 @@ export default function App() {
         <button onClick={() => setShowUploader(true)}><span>📁</span><div><b>Importer un fichier à vendre</b><small>Vendez vos fichiers numériques facilement</small></div><strong>›</strong></button>
         <button onClick={() => setShowAICenter(true)}><span>✨</span><div><b>Centre IA PJD Maker</b><small>Produit, marketing, commercial, vendeur et client</small></div><strong>›</strong></button>
         <button onClick={() => setScreen('growth')}><span>🚀</span><div><b>Écosystème vendeur PJD Maker</b><small>Outils, ressources et accompagnement</small></div><strong>›</strong></button>
+        <button onClick={() => setScreen('certification')}><span>✓</span><div><b>Certifier ma boutique</b><small>Déposez vos justificatifs et obtenez plus de visibilité</small></div><strong>›</strong></button>
       </div>
       <div className="pjd-seller-workspace"><SellerSpaceNav active={sellerTab} onNavigate={navigateSeller} onAddProduct={() => setShowUploader(true)} onOpenPlans={() => setScreen('seller-plans')} /><div className="seller-space-content">{renderSellerTab()}</div></div>
     </div>
@@ -235,7 +240,9 @@ export default function App() {
     if (screen === 'seller-operations') return <SellerOperations session={accountSession} onBack={() => setScreen('seller')} />;
     if (screen === 'orders') return <CustomerOrders session={accountSession} onBack={() => setScreen('market')} />;
     if (screen === 'deliveries') return <CustomerDeliveryReview session={accountSession} />;
-    if (screen === 'admin') return <><AdminDashboard onBack={() => setScreen('market')} /><button onClick={() => setScreen('promo-codes')} style={{ position: 'fixed', right: 20, bottom: 20, zIndex: 9999, padding: '13px 18px', border: 0, borderRadius: 12, background: '#f97316', color: '#fff', fontWeight: 900, cursor: 'pointer', boxShadow: '0 8px 30px rgba(0,0,0,.2)' }}>🏷️ Codes promo</button></>;
+    if (screen === 'certification') return <ShopCertification session={accountSession} shop={shop} onBack={() => setScreen('seller')} />;
+    if (screen === 'shop-verification-admin') return <ShopVerificationAdmin onBack={() => setScreen('admin')} />;
+    if (screen === 'admin') return <><AdminDashboard onBack={() => setScreen('market')} /><div style={{position:'fixed',right:20,bottom:20,zIndex:9999,display:'flex',gap:8,flexDirection:'column'}}><button onClick={() => setScreen('shop-verification-admin')} style={{padding:'13px 18px',border:0,borderRadius:12,background:'#111827',color:'#fff',fontWeight:900,cursor:'pointer',boxShadow:'0 8px 30px rgba(0,0,0,.2)'}}>✓ Vérification des boutiques</button><button onClick={() => setScreen('promo-codes')} style={{padding:'13px 18px',border:0,borderRadius:12,background:'#f97316',color:'#fff',fontWeight:900,cursor:'pointer',boxShadow:'0 8px 30px rgba(0,0,0,.2)'}}>🏷️ Codes promo</button></div></>;
     if (screen === 'promo-codes') return <PromoCodesPage session={accountSession} onBack={() => setScreen('admin')} />;
     if (screen === 'profile-settings') return <ProfileSettings onBack={() => setScreen('account')} />;
     if (screen === 'account') return <AccountPage session={accountSession} initialSection={accountSection} onBack={() => setScreen('market')} />;
