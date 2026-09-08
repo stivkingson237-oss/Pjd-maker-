@@ -1,0 +1,117 @@
+/* PJD MARKET — CSS FINAL FIX
+   Correctifs visuels non destructifs : responsive, cartes produits,
+   boutique publique, catégories et boutons.
+*/
+
+/* Base anti-débordement */
+html, body, #root { max-width: 100%; overflow-x: hidden; }
+*, *::before, *::after { box-sizing: border-box; }
+img { max-width: 100%; }
+button, input, select, textarea { font: inherit; }
+
+/* Accueil Marketplace */
+.mh-page { width: 100%; overflow-x: hidden; }
+.mh-main { width: min(1440px, 100%); }
+.mh-grid { align-items: stretch; }
+.mh-product-card { min-width: 0; height: 100%; display: flex; flex-direction: column; }
+.mh-product-card .mh-body { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.mh-product-card .mh-buy { margin-top: auto; }
+.mh-art, .mh-image-frame, .mh-image-placeholder { width: 100%; }
+.mh-image-frame { height: 220px; aspect-ratio: 1 / 1; }
+.mh-product-image { object-fit: contain !important; background: #f5f6f8; }
+
+/* Uniformisation des cartes produits */
+.public-shop-page .product-card { min-width: 0; height: 100%; display: flex; flex-direction: column; }
+.public-shop-page .product-art { height: 220px; min-height: 220px; }
+.public-shop-page .product-art > img { object-fit: contain; background: #f4f6f8; }
+.public-shop-page .product-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.public-shop-page .product-body h3 { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.public-shop-page .product-mini-rating { min-width: 0; }
+.public-shop-page .product-mini-rating > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.public-shop-page .price { margin-top: auto; padding-top: 10px; padding-right: 58px; min-height: 40px; }
+
+/* Boutique publique : bloc central bien équilibré */
+.public-shop-hero { width: min(1180px, calc(100% - 28px)); }
+.public-shop-banner { width: 100%; }
+.centered-shop-info { width: 100%; }
+.public-shop-actions-row { max-width: 720px; width: 100%; }
+
+/* Catégories : lisibles sans casser le défilement mobile */
+.product-category-tabs { width: 100%; }
+.product-category-tabs button { flex: 0 0 auto; }
+
+/* Avis */
+.shop-rating-summary { flex-wrap: wrap; }
+.shop-reviews-list { min-width: 0; }
+.shop-review-card { min-width: 0; }
+
+/* Boutiques */
+.mh-shop-card { min-width: 0; width: 100%; }
+.mh-shop-info strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Tablette */
+@media (max-width: 1000px) {
+  .mh-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .public-shop-page .products { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .public-shop-page .product-art { height: 190px; min-height: 190px; }
+}
+
+@media (max-width: 760px) {
+  .mh-main { padding-left: 14px; padding-right: 14px; }
+  .mh-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .mh-image-frame, .mh-image-placeholder { height: 190px; min-height: 190px; }
+  .mh-body { padding: 12px; }
+  .mh-body h3 { font-size: 15px; }
+  .mh-buy { min-height: 42px; }
+  .public-shop-hero { width: calc(100% - 24px); }
+  .public-shop-banner { width: 100%; }
+  .public-shop-actions-row { max-width: none; }
+  .shop-rating-summary { gap: 14px; }
+  .shop-rating-text { flex: 1 1 180px; }
+}
+
+@media (max-width: 560px) {
+  .mh-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+  .mh-image-frame, .mh-image-placeholder { height: 170px; min-height: 170px; }
+  .mh-product-card { border-radius: 12px; }
+  .mh-body { padding: 10px 9px; }
+  .mh-body h3 { font-size: 14px; margin: 5px 0; }
+  .mh-cat { font-size: 8px; }
+  .mh-rating { font-size: 11px; }
+  .mh-price strong { font-size: 16px; }
+  .mh-buy { font-size: 11px; padding: 9px 6px; }
+
+  .public-shop-page .products { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+  .public-shop-page .product-art { height: 155px; min-height: 155px; }
+  .public-shop-page .product-body { padding: 9px; }
+  .public-shop-page .product-body h3 { font-size: 14px; }
+  .public-shop-page .price strong { font-size: 15px; }
+  .public-shop-page .add { width: 42px; height: 42px; right: 8px; bottom: 8px; }
+  .public-shop-page .product-review-actions { flex-direction: column; }
+  .public-shop-page .product-review-actions button { width: 100%; }
+
+  .public-shop-info h1 { max-width: 100%; overflow-wrap: anywhere; }
+  .public-shop-info p { max-width: 100%; }
+  .public-shop-actions-row { gap: 6px; flex-wrap: wrap; }
+  .shop-follow-button,
+  .public-shop-actions-row > .shop-stat:not(.shop-stat-button),
+  .shop-stat-button { margin: 0 !important; border-radius: 14px !important; flex: 1 1 calc(50% - 3px); min-width: 0; }
+  .shop-stat-button { flex-basis: 100%; }
+
+  .product-category-tabs { justify-content: flex-start; overflow-x: auto; padding-bottom: 12px; }
+  .product-category-tabs button { font-size: 11px !important; padding: 9px 11px; }
+  .product-category-tabs button::after { display: none !important; }
+
+  .section-head { gap: 10px; }
+  .section-head h2 { overflow-wrap: anywhere; }
+  .shop-review-card { flex-direction: column; }
+  .shop-review-head { width: 100%; }
+  .shop-review-head > span { margin-left: auto; }
+}
+
+@media (max-width: 380px) {
+  .mh-grid, .public-shop-page .products { gap: 7px; }
+  .mh-image-frame, .mh-image-placeholder { height: 150px; min-height: 150px; }
+  .public-shop-page .product-art { height: 140px; min-height: 140px; }
+  .mh-buy { font-size: 10px; }
+}
