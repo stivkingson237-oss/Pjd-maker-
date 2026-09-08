@@ -72,6 +72,14 @@ export default function App() {
     return () => window.removeEventListener('pjd-shop-updated', handler);
   }, [accountSession?.user?.id]);
 
+  // MarketplaceTopNav is rendered outside the main click-capture container.
+  // Listen directly to the custom event emitted by the Administration button.
+  useEffect(() => {
+    const handler = () => setScreen('admin');
+    window.addEventListener('pjd-open-admin', handler);
+    return () => window.removeEventListener('pjd-open-admin', handler);
+  }, []);
+
   useEffect(() => {
     const handler = (event) => {
       const id = event.detail?.shopId;
