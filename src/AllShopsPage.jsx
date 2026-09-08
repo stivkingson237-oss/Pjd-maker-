@@ -1,111 +1,16 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, MapPin, Search, Star, Store, Users } from "lucide-react";
+import { ArrowLeft, MapPin, Search, Star, Store, Users, ShieldCheck } from "lucide-react";
 import { supabase } from "./lib/supabase";
 
 const styles = `
 .all-shops-page{min-height:100vh;background:#f7f7f8;color:#111827;padding:24px 18px 60px;font-family:Inter,system-ui,sans-serif}
-.all-shops-wrap{max-width:1180px;margin:0 auto}
-.all-shops-head{display:flex;align-items:center;gap:14px;margin-bottom:24px}
-.all-shops-back{border:1px solid #e5e7eb;background:#fff;border-radius:12px;width:42px;height:42px;display:grid;place-items:center;cursor:pointer}
-.all-shops-title{flex:1}.all-shops-title span{font-size:12px;font-weight:900;letter-spacing:.12em;color:#f97316}.all-shops-title h1{margin:3px 0;font-size:30px}.all-shops-title p{margin:0;color:#6b7280}
-.all-shops-toolbar{background:#fff;border:1px solid #e5e7eb;border-radius:18px;padding:14px;display:flex;gap:10px;flex-wrap:wrap;margin-bottom:22px}
-.all-shops-search{display:flex;align-items:center;gap:9px;flex:1;min-width:230px;border:1px solid #e5e7eb;border-radius:12px;padding:0 12px}.all-shops-search input{border:0;outline:0;width:100%;padding:12px 0;font-size:14px}
-.all-shops-toolbar select{border:1px solid #e5e7eb;border-radius:12px;padding:0 12px;background:#fff;font-weight:700;min-height:44px}
-.all-shops-count{margin:0 0 14px;color:#6b7280;font-size:14px;font-weight:700}
-.all-shops-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
-.all-shop-card{position:relative;text-align:left;background:#fff;border:1px solid #e5e7eb;border-radius:18px;overflow:hidden;padding:0;cursor:pointer;box-shadow:0 5px 20px rgba(0,0,0,.04);transition:transform .18s,box-shadow .18s}.all-shop-card:hover{transform:translateY(-3px);box-shadow:0 12px 30px rgba(0,0,0,.09)}
-.all-shop-banner{height:125px;background:linear-gradient(135deg,#111827,#374151);background-size:cover;background-position:center}
-.all-shop-logo{position:absolute;top:88px;left:18px;width:72px;height:72px;border-radius:18px;background:#fff;border:4px solid #fff;box-shadow:0 5px 16px rgba(0,0,0,.14);display:grid;place-items:center;overflow:hidden;color:#f97316}.all-shop-logo img{width:100%;height:100%;object-fit:cover}
-.all-shop-body{padding:48px 18px 18px}.all-shop-name{font-size:18px;font-weight:900;margin:0 0 5px}.all-shop-category{display:inline-block;font-size:12px;font-weight:800;color:#f97316;background:#fff7ed;padding:5px 8px;border-radius:8px;margin-bottom:12px}.all-shop-desc{font-size:13px;line-height:1.45;color:#6b7280;min-height:38px;margin:0 0 14px}.all-shop-meta{display:flex;gap:13px;flex-wrap:wrap;color:#6b7280;font-size:12px;font-weight:700}.all-shop-meta span{display:flex;align-items:center;gap:4px}
-.all-shops-empty{background:#fff;border:1px dashed #d1d5db;border-radius:18px;padding:45px 20px;text-align:center;color:#6b7280}.all-shops-empty svg{color:#f97316;margin-bottom:8px}
-@media(max-width:800px){.all-shops-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.all-shops-title h1{font-size:25px}}
-@media(max-width:560px){.all-shops-page{padding:16px 12px 45px}.all-shops-grid{grid-template-columns:1fr}.all-shop-banner{height:115px}}
+.all-shops-wrap{max-width:1180px;margin:0 auto}.all-shops-head{display:flex;align-items:center;gap:14px;margin-bottom:24px}.all-shops-back{border:1px solid #e5e7eb;background:#fff;border-radius:12px;width:42px;height:42px;display:grid;place-items:center;cursor:pointer}.all-shops-title{flex:1}.all-shops-title span{font-size:12px;font-weight:900;letter-spacing:.12em;color:#f97316}.all-shops-title h1{margin:3px 0;font-size:30px}.all-shops-title p{margin:0;color:#6b7280}.all-shops-toolbar{background:#fff;border:1px solid #e5e7eb;border-radius:18px;padding:14px;display:flex;gap:10px;flex-wrap:wrap;margin-bottom:22px}.all-shops-search{display:flex;align-items:center;gap:9px;flex:1;min-width:230px;border:1px solid #e5e7eb;border-radius:12px;padding:0 12px}.all-shops-search input{border:0;outline:0;width:100%;padding:12px 0;font-size:14px}.all-shops-toolbar select{border:1px solid #e5e7eb;border-radius:12px;padding:0 12px;background:#fff;font-weight:700;min-height:44px}.all-shops-count{margin:0 0 14px;color:#6b7280;font-size:14px;font-weight:700}.all-shops-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}.all-shop-card{position:relative;text-align:left;background:#fff;border:1px solid #e5e7eb;border-radius:18px;overflow:hidden;padding:0;cursor:pointer;box-shadow:0 5px 20px rgba(0,0,0,.04);transition:transform .18s,box-shadow .18s}.all-shop-card:hover{transform:translateY(-3px);box-shadow:0 12px 30px rgba(0,0,0,.09)}.all-shop-banner{height:125px;background:linear-gradient(135deg,#111827,#374151);background-size:cover;background-position:center}.all-shop-logo{position:absolute;top:88px;left:18px;width:72px;height:72px;border-radius:18px;background:#fff;border:4px solid #fff;box-shadow:0 5px 16px rgba(0,0,0,.14);display:grid;place-items:center;overflow:hidden;color:#f97316}.all-shop-logo img{width:100%;height:100%;object-fit:cover}.all-shop-body{padding:48px 18px 18px}.all-shop-name{font-size:18px;font-weight:900;margin:0 0 5px;display:flex;align-items:center;gap:7px}.all-shop-category{display:inline-block;font-size:12px;font-weight:800;color:#f97316;background:#fff7ed;padding:5px 8px;border-radius:8px;margin-bottom:12px}.all-shop-desc{font-size:13px;line-height:1.45;color:#6b7280;min-height:38px;margin:0 0 14px}.all-shop-meta{display:flex;gap:13px;flex-wrap:wrap;color:#6b7280;font-size:12px;font-weight:700}.all-shop-meta span{display:flex;align-items:center;gap:4px}.certified-badge{display:inline-flex;align-items:center;gap:4px;background:#ecfdf5;color:#166534;border:1px solid #bbf7d0;border-radius:999px;padding:4px 7px;font-size:10px;font-weight:900}.certified-card{border-color:#86efac;box-shadow:0 8px 25px rgba(22,101,52,.08)}.all-shops-empty{background:#fff;border:1px dashed #d1d5db;border-radius:18px;padding:45px 20px;text-align:center;color:#6b7280}.all-shops-empty svg{color:#f97316;margin-bottom:8px}@media(max-width:800px){.all-shops-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.all-shops-title h1{font-size:25px}}@media(max-width:560px){.all-shops-page{padding:16px 12px 45px}.all-shops-grid{grid-template-columns:1fr}.all-shop-banner{height:115px}}
 `;
 
 export default function AllShopsPage({ onBack, onOpenShop }) {
-  const [shops, setShops] = useState([]);
-  const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("all");
-  const [sort, setSort] = useState("rating");
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let alive = true;
-    const load = async () => {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from("shops")
-        .select("id,shop_name,slug,description,logo,banner,category,status,city,country,rating,followers_count")
-        .eq("status", "active");
-      if (alive) {
-        if (error) console.error("PJD shops error", error);
-        setShops(data || []);
-        setLoading(false);
-      }
-    };
-    load();
-    return () => { alive = false; };
-  }, []);
-
-  const categories = useMemo(() => ["all", ...new Set(shops.map(s => s.category).filter(Boolean))], [shops]);
-
-  const filtered = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    const list = shops.filter(shop => {
-      const matchesSearch = `${shop.shop_name || ""} ${shop.description || ""} ${shop.category || ""} ${shop.city || ""}`.toLowerCase().includes(term);
-      const matchesCategory = category === "all" || shop.category === category;
-      return matchesSearch && matchesCategory;
-    });
-    if (sort === "name") list.sort((a,b) => (a.shop_name || "").localeCompare(b.shop_name || "", "fr"));
-    if (sort === "followers") list.sort((a,b) => Number(b.followers_count || 0) - Number(a.followers_count || 0));
-    if (sort === "rating") list.sort((a,b) => Number(b.rating || 0) - Number(a.rating || 0));
-    return list;
-  }, [shops, search, category, sort]);
-
-  return (
-    <>
-      <style>{styles}</style>
-      <div className="all-shops-page">
-        <div className="all-shops-wrap">
-          <header className="all-shops-head">
-            <button className="all-shops-back" type="button" onClick={onBack} aria-label="Retour"><ArrowLeft size={19}/></button>
-            <div className="all-shops-title"><span>PJD MARKET · BOUTIQUES</span><h1>Toutes les boutiques</h1><p>Découvrez les boutiques et les vendeurs présents sur PJD Market.</p></div>
-          </header>
-
-          <div className="all-shops-toolbar">
-            <label className="all-shops-search"><Search size={18}/><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher une boutique..." /></label>
-            <select value={category} onChange={e => setCategory(e.target.value)} aria-label="Filtrer par catégorie">
-              {categories.map(item => <option key={item} value={item}>{item === "all" ? "Toutes les catégories" : item}</option>)}
-            </select>
-            <select value={sort} onChange={e => setSort(e.target.value)} aria-label="Trier les boutiques">
-              <option value="rating">Mieux notées</option><option value="followers">Plus suivies</option><option value="name">Nom A–Z</option>
-            </select>
-          </div>
-
-          <p className="all-shops-count">{loading ? "Chargement des boutiques..." : `${filtered.length} boutique${filtered.length > 1 ? "s" : ""}`}</p>
-
-          {loading ? <div className="all-shops-empty">Chargement...</div> : filtered.length ? (
-            <div className="all-shops-grid">
-              {filtered.map(shop => (
-                <button className="all-shop-card" type="button" key={shop.id} onClick={() => onOpenShop(shop.id)}>
-                  <div className="all-shop-banner" style={shop.banner ? {backgroundImage:`url(${shop.banner})`} : undefined}/>
-                  <div className="all-shop-logo">{shop.logo ? <img src={shop.logo} alt=""/> : <Store size={28}/>}</div>
-                  <div className="all-shop-body">
-                    <h2 className="all-shop-name">{shop.shop_name || "Boutique"}</h2>
-                    <span className="all-shop-category">{shop.category || "Boutique"}</span>
-                    <p className="all-shop-desc">{shop.description || "Découvrez les produits de cette boutique sur PJD Market."}</p>
-                    <div className="all-shop-meta">
-                      <span><Star size={14} fill="currentColor"/> {Number(shop.rating || 0).toFixed(1)}</span>
-                      <span><Users size={14}/> {Number(shop.followers_count || 0)} abonnés</span>
-                      {shop.city && <span><MapPin size={14}/> {shop.city}</span>}
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          ) : <div className="all-shops-empty"><Store size={34}/><div>Aucune boutique trouvée.</div><small>Essayez une autre recherche ou catégorie.</small></div>}
-        </div>
-      </div>
-    </>
-  );
+  const [shops, setShops] = useState([]);const [search,setSearch]=useState("");const [category,setCategory]=useState("all");const [sort,setSort]=useState("rating");const [loading,setLoading]=useState(true);
+  useEffect(()=>{let alive=true;(async()=>{setLoading(true);const{data,error}=await supabase.from("shops").select("id,shop_name,slug,description,logo,banner,category,status,city,country,rating,followers_count,certification_status").eq("status","active");if(alive){if(error)console.error("PJD shops error",error);setShops(data||[]);setLoading(false)}})();return()=>{alive=false}},[]);
+  const categories=useMemo(()=>["all",...new Set(shops.map(s=>s.category).filter(Boolean))],[shops]);
+  const filtered=useMemo(()=>{const term=search.trim().toLowerCase();const list=shops.filter(shop=>`${shop.shop_name||""} ${shop.description||""} ${shop.category||""} ${shop.city||""}`.toLowerCase().includes(term)&&(category==="all"||shop.category===category));if(sort==="name")list.sort((a,b)=>(a.shop_name||"").localeCompare(b.shop_name||"","fr"));if(sort==="followers")list.sort((a,b)=>Number(b.followers_count||0)-Number(a.followers_count||0));if(sort==="rating")list.sort((a,b)=>(Number(b.certification_status==="certified")-Number(a.certification_status==="certified"))||Number(b.rating||0)-Number(a.rating||0));return list},[shops,search,category,sort]);
+  return <><style>{styles}</style><div className="all-shops-page"><div className="all-shops-wrap"><header className="all-shops-head"><button className="all-shops-back" type="button" onClick={onBack} aria-label="Retour"><ArrowLeft size={19}/></button><div className="all-shops-title"><span>PJD MARKET · BOUTIQUES</span><h1>Toutes les boutiques</h1><p>Découvrez les boutiques et les vendeurs présents sur PJD Market.</p></div></header><div className="all-shops-toolbar"><label className="all-shops-search"><Search size={18}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Rechercher une boutique..."/></label><select value={category} onChange={e=>setCategory(e.target.value)}><option value="all">Toutes les catégories</option>{categories.filter(x=>x!=="all").map(item=><option key={item} value={item}>{item}</option>)}</select><select value={sort} onChange={e=>setSort(e.target.value)}><option value="rating">Certifiées + mieux notées</option><option value="followers">Plus suivies</option><option value="name">Nom A–Z</option></select></div><p className="all-shops-count">{loading?"Chargement des boutiques...":`${filtered.length} boutique${filtered.length>1?"s":""}`}</p>{loading?<div className="all-shops-empty">Chargement...</div>:filtered.length?<div className="all-shops-grid">{filtered.map(shop=>{const certified=shop.certification_status==="certified";return <button className={`all-shop-card ${certified?'certified-card':''}`} type="button" key={shop.id} onClick={()=>onOpenShop(shop.id)}><div className="all-shop-banner" style={shop.banner?{backgroundImage:`url(${shop.banner})`}:undefined}/><div className="all-shop-logo">{shop.logo?<img src={shop.logo} alt=""/>:<Store size={28}/>}</div><div className="all-shop-body"><h2 className="all-shop-name">{shop.shop_name||"Boutique"}{certified&&<span className="certified-badge"><ShieldCheck size={12}/> Certifiée</span>}</h2><span className="all-shop-category">{shop.category||"Boutique"}</span><p className="all-shop-desc">{shop.description||"Découvrez les produits de cette boutique sur PJD Market."}</p><div className="all-shop-meta"><span><Star size={14} fill="currentColor"/> {Number(shop.rating||0).toFixed(1)}</span><span><Users size={14}/> {Number(shop.followers_count||0)} abonnés</span>{shop.city&&<span><MapPin size={14}/> {shop.city}</span>}</div></div></button>})}</div>:<div className="all-shops-empty"><Store size={34}/><div>Aucune boutique trouvée.</div><small>Essayez une autre recherche ou catégorie.</small></div>}</div></div></>;
 }
