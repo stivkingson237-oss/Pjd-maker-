@@ -9,15 +9,59 @@ export default function MarketplaceTopNav({ session, shop, onOpenAffiliate, onOp
   const [cartPulse, setCartPulse] = useState(false);
   const [cartNotice, setCartNotice] = useState("");
   const [showAllShops, setShowAllShops] = useState(false);
+
   useEffect(() => {
     const read = () => { try { const cart = JSON.parse(localStorage.getItem("pjd-cart") || "[]"); setCartCount(cart.reduce((total, item) => total + Number(item.quantity || 0), 0)); } catch { setCartCount(0); } };
     const added = (event) => { read(); setCartPulse(true); window.setTimeout(() => setCartPulse(false), 450); const product = event.detail?.product; setCartNotice(`✓ ${product?.name || product?.title || "Produit"} ajouté au panier`); window.setTimeout(() => setCartNotice(""), 1800); window.setTimeout(() => window.dispatchEvent(new CustomEvent("pjd-open-cart")), 60); };
     read(); window.addEventListener("storage", read); window.addEventListener("pjd-cart-updated", added); const timer = window.setInterval(read, 500);
     return () => { window.removeEventListener("storage", read); window.removeEventListener("pjd-cart-updated", added); window.clearInterval(timer); };
   }, []);
+
   const openShop = () => { if (shop) { window.dispatchEvent(new CustomEvent("pjd-open-shop", { detail: { shopId: shop.id, shop } })); return; } onOpenSeller?.(null); };
   const openAllShops = () => setShowAllShops(true);
-  return (<><MultiVendorCheckout session={session} /><style>{`.pjd-topnav{width:100%;position:relative;z-index:1000}.pjd-topnav-actions{display:flex!important;align-items:center;gap:6px;overflow-x:auto;white-space:nowrap;scrollbar-width:none;padding:5px 4px}.pjd-topnav-actions::-webkit-scrollbar{display:none}.pjd-action{flex:0 0 auto!important;min-width:max-content}.pjd-shop-list{display:flex!important;align-items:center;justify-content:center;gap:6px;background:#111827!important;color:#fff!important;border:2px solid #f97316!important;border-radius:12px!important;padding:9px 13px!important;font-weight:900!important;box-shadow:0 4px 14px rgba(249,115,22,.25)}.pjd-shop-list svg{width:19px;height:19px}.pjd-cart-action{position:relative}.pjd-cart-badge{position:absolute;top:-7px;right:-7px;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:#f97316;color:#fff;border:2px solid #fff;font:800 11px/16px Inter,system-ui,sans-serif;text-align:center;z-index:3}@media(max-width:700px){.pjd-topnav{position:sticky;top:0;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.08)}.pjd-topnav-actions{width:100%;padding:7px 8px;gap:7px}.pjd-action{font-size:12px!important;padding:8px 10px!important}.pjd-shop-list{order:-1;min-width:112px!important;font-size:13px!important}.pjd-shop-list span{display:inline!important}}`}</style><div className="pjd-topnav"><div className="pjd-topnav-brand"><b>PJD</b><span>MARKET</span></div><div className="pjd-topnav-actions"><button className="pjd-action pjd-shop-list" onClick={openAllShops} type="button" aria-label="Voir toutes les boutiques"><Store /><span>Boutiques</span></button>{session ? <><button className="pjd-action" onClick={() => onOpenAffiliate?.()}><Gift /><span>Affiliation</span></button><button className="pjd-action" onClick={() => onOpenAccount?.("favorites")}><Heart /><span>Favoris</span></button><button className={`pjd-action pjd-cart-action ${cartPulse ? "pjd-pulse" : ""}`} onClick={onOpenCart}><ShoppingCart />{cartCount > 0 && <span className="pjd-cart-badge">{cartCount > 99 ? "99+" : cartCount}</span>}<span>Panier</span></button><button className="pjd-action pjd-shop" onClick={openShop}><Store /><span>{shop ? "Ma boutique" : "Créer ma boutique"}</span></button><button className="pjd-action" onClick={() => onOpenAccount?.("account")}><User /><span>Mon compte</span></button></> : <><button className="pjd-action" onClick={() => onOpenAuth?.("login")}><LogIn /><span>Se connecter</span></button><button className="pjd-action pjd-create-shop" onClick={() => onOpenAuth?.("signup")}><UserPlus /><span>S'inscrire</span></button></>}</div></div>{cartNotice && <div className="pjd-cart-notice" role="status">{cartNotice}</div>}{showAllShops && <div className="pjd-all-shops-modal"><button className="pjd-all-shops-close" type="button" onClick={() => setShowAllShops(false)} aria-label="Fermer les boutiques"><X size={21}/></button><AllShopsPage onBack={() => setShowAllShops(false)} onOpenShop={(shopId) => { setShowAllShops(false); window.dispatchEvent(new CustomEvent("pjd-open-shop", { detail: { shopId } })); }} /></div>}</>);
+
+  return (<>
+    <MultiVendorCheckout session={session} />
+    <style>{`
+      .pjd-topnav{width:100%;position:relative;z-index:1000}
+      .pjd-topnav-actions{display:flex!important;align-items:center;gap:6px;overflow-x:auto;white-space:nowrap;scrollbar-width:none;padding:5px 4px}
+      .pjd-topnav-actions::-webkit-scrollbar{display:none}
+      .pjd-action{flex:0 0 auto!important;min-width:max-content}
+      .pjd-cart-action{position:relative}
+      .pjd-cart-badge{position:absolute;top:-7px;right:-7px;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:#f97316;color:#fff;border:2px solid #fff;font:800 11px/16px Inter,system-ui,sans-serif;text-align:center;z-index:3}
+      .pjd-boutiques-under-sell{display:flex!important;align-items:center;justify-content:center;gap:8px;width:calc(100% - 16px);margin:4px 8px 10px;background:#f97316!important;color:#fff!important;border:0!important;border-radius:12px!important;padding:11px 16px!important;font-weight:900!important;font-size:14px!important;box-shadow:0 5px 14px rgba(249,115,22,.28);cursor:pointer}
+      .pjd-boutiques-under-sell svg{width:19px;height:19px}
+      .pjd-boutiques-wrap{width:100%}
+      @media(max-width:700px){
+        .pjd-topnav{position:relative;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.08)}
+        .pjd-topnav-actions{width:100%;padding:7px 8px;gap:7px}
+        .pjd-action{font-size:12px!important;padding:8px 10px!important}
+        .pjd-boutiques-under-sell{margin:5px 8px 10px;width:calc(100% - 16px);font-size:14px!important;padding:12px 16px!important}
+      }
+    `}</style>
+    <div className="pjd-topnav">
+      <div className="pjd-topnav-brand"><b>PJD</b><span>MARKET</span></div>
+      <div className="pjd-topnav-actions">
+        {session ? <>
+          <button className="pjd-action" onClick={() => onOpenAffiliate?.()}><Gift /><span>Affiliation</span></button>
+          <button className="pjd-action" onClick={() => onOpenAccount?.("favorites")}><Heart /><span>Favoris</span></button>
+          <button className={`pjd-action pjd-cart-action ${cartPulse ? "pjd-pulse" : ""}`} onClick={onOpenCart}><ShoppingCart />{cartCount > 0 && <span className="pjd-cart-badge">{cartCount > 99 ? "99+" : cartCount}</span>}<span>Panier</span></button>
+          <button className="pjd-action pjd-shop" onClick={openShop}><Store /><span>{shop ? "Ma boutique" : "Créer ma boutique"}</span></button>
+          <button className="pjd-action" onClick={() => onOpenAccount?.("account")}><User /><span>Mon compte</span></button>
+        </> : <>
+          <button className="pjd-action" onClick={() => onOpenAuth?.("login")}><LogIn /><span>Se connecter</span></button>
+          <button className="pjd-action pjd-create-shop" onClick={() => onOpenAuth?.("signup")}><UserPlus /><span>S'inscrire</span></button>
+        </>}
+      </div>
+      <div className="pjd-boutiques-wrap">
+        <button className="pjd-boutiques-under-sell" onClick={openAllShops} type="button" aria-label="Voir toutes les boutiques">
+          <Store /><span>Boutiques</span>
+        </button>
+      </div>
+    </div>
+    {cartNotice && <div className="pjd-cart-notice" role="status">{cartNotice}</div>}
+    {showAllShops && <div className="pjd-all-shops-modal"><button className="pjd-all-shops-close" type="button" onClick={() => setShowAllShops(false)} aria-label="Fermer les boutiques"><X size={21}/></button><AllShopsPage onBack={() => setShowAllShops(false)} onOpenShop={(shopId) => { setShowAllShops(false); window.dispatchEvent(new CustomEvent("pjd-open-shop", { detail: { shopId } })); }} /></div>}
+  </>);
 }
 
 export function CreateShopFlow({ session, onDone, onClose }) {
