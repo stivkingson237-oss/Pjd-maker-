@@ -2,11 +2,13 @@ import React, { useEffect, useState } from "react";
 import { Heart, ShoppingCart, Store, User, LogIn, UserPlus, Gift, Mail, X } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import MultiVendorCheckout from "./MultiVendorCheckout";
+import AllShopsPage from "./AllShopsPage";
 
 export default function MarketplaceTopNav({ session, shop, onOpenAffiliate, onOpenAccount, onOpenCart, onOpenSeller, onOpenAuth }) {
   const [cartCount, setCartCount] = useState(0);
   const [cartPulse, setCartPulse] = useState(false);
   const [cartNotice, setCartNotice] = useState("");
+  const [showAllShops, setShowAllShops] = useState(false);
 
   useEffect(() => {
     const read = () => {
@@ -48,13 +50,16 @@ export default function MarketplaceTopNav({ session, shop, onOpenAffiliate, onOp
     onOpenSeller?.(null);
   };
 
+  const openAllShops = () => setShowAllShops(true);
+
   return (
     <>
       <MultiVendorCheckout session={session} />
-      <style>{`@keyframes pjdCartPulse{0%{transform:scale(1)}35%{transform:scale(1.16)}65%{transform:scale(.94)}100%{transform:scale(1)}}@keyframes pjdBadgePop{0%{transform:scale(.4);opacity:0}70%{transform:scale(1.12);opacity:1}100%{transform:scale(1);opacity:1}}@keyframes pjdNoticeIn{from{transform:translateY(12px);opacity:0}to{transform:translateY(0);opacity:1}}.pjd-cart-action{position:relative}.pjd-cart-action.pjd-pulse svg{animation:pjdCartPulse .45s ease}.pjd-cart-badge{position:absolute;top:-7px;right:-7px;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:#f97316;color:#fff;border:2px solid #fff;font:800 11px/16px Inter,system-ui,sans-serif;text-align:center;z-index:3;animation:pjdBadgePop .28s ease}.pjd-cart-notice{position:fixed;right:16px;bottom:18px;z-index:100000;background:#111827;color:#fff;padding:12px 16px;border-radius:14px;box-shadow:0 12px 35px rgba(0,0,0,.25);font:800 14px/1.3 Inter,system-ui,sans-serif;animation:pjdNoticeIn .25s ease}`}</style>
+      <style>{`@keyframes pjdCartPulse{0%{transform:scale(1)}35%{transform:scale(1.16)}65%{transform:scale(.94)}100%{transform:scale(1)}}@keyframes pjdBadgePop{0%{transform:scale(.4);opacity:0}70%{transform:scale(1.12);opacity:1}100%{transform:scale(1);opacity:1}}@keyframes pjdNoticeIn{from{transform:translateY(12px);opacity:0}to{transform:translateY(0);opacity:1}}.pjd-cart-action{position:relative}.pjd-cart-action.pjd-pulse svg{animation:pjdCartPulse .45s ease}.pjd-cart-badge{position:absolute;top:-7px;right:-7px;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:#f97316;color:#fff;border:2px solid #fff;font:800 11px/16px Inter,system-ui,sans-serif;text-align:center;z-index:3;animation:pjdBadgePop .28s ease}.pjd-cart-notice{position:fixed;right:16px;bottom:18px;z-index:100000;background:#111827;color:#fff;padding:12px 16px;border-radius:14px;box-shadow:0 12px 35px rgba(0,0,0,.25);font:800 14px/1.3 Inter,system-ui,sans-serif;animation:pjdNoticeIn .25s ease}.pjd-all-shops-modal{position:fixed;inset:0;z-index:100001;overflow:auto;background:#f7f7f8}.pjd-all-shops-close{position:fixed;top:12px;right:14px;z-index:100005;width:44px;height:44px;border:0;border-radius:50%;background:#111827;color:#fff;display:grid;place-items:center;cursor:pointer;box-shadow:0 8px 25px rgba(0,0,0,.25)}`}</style>
       <div className="pjd-topnav">
         <div className="pjd-topnav-brand"><b>PJD</b><span>MARKET</span></div>
         <div className="pjd-topnav-actions">
+          <button className="pjd-action pjd-shop-list" onClick={openAllShops}><Store /><span>Boutiques</span></button>
           {session ? (
             <>
               <button className="pjd-action" onClick={() => onOpenAffiliate?.()}><Gift /><span>Affiliation</span></button>
@@ -76,6 +81,12 @@ export default function MarketplaceTopNav({ session, shop, onOpenAffiliate, onOp
         </div>
       </div>
       {cartNotice && <div className="pjd-cart-notice" role="status">{cartNotice}</div>}
+      {showAllShops && (
+        <div className="pjd-all-shops-modal">
+          <button className="pjd-all-shops-close" type="button" onClick={() => setShowAllShops(false)} aria-label="Fermer les boutiques"><X size={21}/></button>
+          <AllShopsPage onBack={() => setShowAllShops(false)} onOpenShop={(shopId) => { setShowAllShops(false); window.dispatchEvent(new CustomEvent("pjd-open-shop", { detail: { shopId } })); }} />
+        </div>
+      )}
     </>
   );
 }
