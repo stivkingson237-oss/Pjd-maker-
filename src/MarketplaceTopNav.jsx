@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Heart, ShoppingCart, Store, User, LogIn, UserPlus, Gift, Mail, X } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import MultiVendorCheckout from "./MultiVendorCheckout";
@@ -9,6 +10,7 @@ export default function MarketplaceTopNav({ session, shop, onOpenAffiliate, onOp
   const [cartPulse, setCartPulse] = useState(false);
   const [cartNotice, setCartNotice] = useState("");
   const [showAllShops, setShowAllShops] = useState(false);
+  const [boutiquesTarget, setBoutiquesTarget] = useState(null);
 
   useEffect(() => {
     const read = () => { try { const cart = JSON.parse(localStorage.getItem("pjd-cart") || "[]"); setCartCount(cart.reduce((total, item) => total + Number(item.quantity || 0), 0)); } catch { setCartCount(0); } };
@@ -17,8 +19,40 @@ export default function MarketplaceTopNav({ session, shop, onOpenAffiliate, onOp
     return () => { window.removeEventListener("storage", read); window.removeEventListener("pjd-cart-updated", added); window.clearInterval(timer); };
   }, []);
 
+  useEffect(() => {
+    let slot = null;
+    let observer = null;
+
+    const locateSellingButton = () => {
+      const cta = document.querySelector(".mh-start-selling");
+      if (!cta) return;
+      if (slot && slot.isConnected) return;
+
+      slot = document.createElement("div");
+      slot.className = "pjd-boutiques-cta-slot";
+      cta.insertAdjacentElement("afterend", slot);
+      setBoutiquesTarget(slot);
+    };
+
+    locateSellingButton();
+    observer = new MutationObserver(locateSellingButton);
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      observer?.disconnect();
+      if (slot?.parentNode) slot.parentNode.removeChild(slot);
+      setBoutiquesTarget(null);
+    };
+  }, []);
+
   const openShop = () => { if (shop) { window.dispatchEvent(new CustomEvent("pjd-open-shop", { detail: { shopId: shop.id, shop } })); return; } onOpenSeller?.(null); };
   const openAllShops = () => setShowAllShops(true);
+
+  const boutiquesButton = (
+    <button className="pjd-boutiques-under-sell" onClick={openAllShops} type="button" aria-label="Voir toutes les boutiques">
+      <Store /><span>Boutiques</span>
+    </button>
+  );
 
   return (<>
     <MultiVendorCheckout session={session} />
@@ -29,14 +63,15 @@ export default function MarketplaceTopNav({ session, shop, onOpenAffiliate, onOp
       .pjd-action{flex:0 0 auto!important;min-width:max-content}
       .pjd-cart-action{position:relative}
       .pjd-cart-badge{position:absolute;top:-7px;right:-7px;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:#f97316;color:#fff;border:2px solid #fff;font:800 11px/16px Inter,system-ui,sans-serif;text-align:center;z-index:3}
-      .pjd-boutiques-under-sell{display:flex!important;align-items:center;justify-content:center;gap:8px;width:calc(100% - 16px);margin:4px 8px 10px;background:#f97316!important;color:#fff!important;border:0!important;border-radius:12px!important;padding:11px 16px!important;font-weight:900!important;font-size:14px!important;box-shadow:0 5px 14px rgba(249,115,22,.28);cursor:pointer}
+      .pjd-boutiques-cta-slot{width:100%;margin-top:8px}
+      .pjd-boutiques-under-sell{display:flex!important;align-items:center;justify-content:center;gap:8px;width:100%;background:#f97316!important;color:#fff!important;border:0!important;border-radius:12px!important;padding:11px 16px!important;font-weight:900!important;font-size:14px!important;box-shadow:0 5px 14px rgba(249,115,22,.28);cursor:pointer}
       .pjd-boutiques-under-sell svg{width:19px;height:19px}
-      .pjd-boutiques-wrap{width:100%}
       @media(max-width:700px){
         .pjd-topnav{position:relative;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.08)}
         .pjd-topnav-actions{width:100%;padding:7px 8px;gap:7px}
         .pjd-action{font-size:12px!important;padding:8px 10px!important}
-        .pjd-boutiques-under-sell{margin:5px 8px 10px;width:calc(100% - 16px);font-size:14px!important;padding:12px 16px!important}
+        .pjd-boutiques-cta-slot{margin-top:7px}
+        .pjd-boutiques-under-sell{font-size:14px!important;padding:12px 16px!important}
       }
     `}</style>
     <div className="pjd-topnav">
@@ -53,14 +88,10 @@ export default function MarketplaceTopNav({ session, shop, onOpenAffiliate, onOp
           <button className="pjd-action pjd-create-shop" onClick={() => onOpenAuth?.("signup")}><UserPlus /><span>S'inscrire</span></button>
         </>}
       </div>
-      <div className="pjd-boutiques-wrap">
-        <button className="pjd-boutiques-under-sell" onClick={openAllShops} type="button" aria-label="Voir toutes les boutiques">
-          <Store /><span>Boutiques</span>
-        </button>
-      </div>
     </div>
     {cartNotice && <div className="pjd-cart-notice" role="status">{cartNotice}</div>}
     {showAllShops && <div className="pjd-all-shops-modal"><button className="pjd-all-shops-close" type="button" onClick={() => setShowAllShops(false)} aria-label="Fermer les boutiques"><X size={21}/></button><AllShopsPage onBack={() => setShowAllShops(false)} onOpenShop={(shopId) => { setShowAllShops(false); window.dispatchEvent(new CustomEvent("pjd-open-shop", { detail: { shopId } })); }} /></div>}
+    {boutiquesTarget && createPortal(boutiquesButton, boutiquesTarget)}
   </>);
 }
 
