@@ -9,7 +9,6 @@ export default function MarketplaceTopNav({ session, shop, onOpenAffiliate, onOp
   const [cartCount, setCartCount] = useState(0);
   const [cartPulse, setCartPulse] = useState(false);
   const [cartNotice, setCartNotice] = useState("");
-  const [showAllShops, setShowAllShops] = useState(false);
   const [boutiquesTarget, setBoutiquesTarget] = useState(null);
 
   useEffect(() => {
@@ -22,31 +21,26 @@ export default function MarketplaceTopNav({ session, shop, onOpenAffiliate, onOp
   useEffect(() => {
     let slot = null;
     let observer = null;
-
     const locateSellingButton = () => {
       const cta = document.querySelector(".mh-start-selling");
       if (!cta) return;
       if (slot && slot.isConnected) return;
-
       slot = document.createElement("div");
       slot.className = "pjd-boutiques-cta-slot";
       cta.insertAdjacentElement("afterend", slot);
       setBoutiquesTarget(slot);
     };
-
     locateSellingButton();
     observer = new MutationObserver(locateSellingButton);
     observer.observe(document.body, { childList: true, subtree: true });
-
-    return () => {
-      observer?.disconnect();
-      if (slot?.parentNode) slot.parentNode.removeChild(slot);
-      setBoutiquesTarget(null);
-    };
+    return () => { observer?.disconnect(); if (slot?.parentNode) slot.parentNode.removeChild(slot); setBoutiquesTarget(null); };
   }, []);
 
   const openShop = () => { if (shop) { window.dispatchEvent(new CustomEvent("pjd-open-shop", { detail: { shopId: shop.id, shop } })); return; } onOpenSeller?.(null); };
-  const openAllShops = () => setShowAllShops(true);
+  const openAllShops = () => {
+    const url = `${window.location.origin}${window.location.pathname}?pjd_shops_window=1`;
+    window.open(url, "pjd-market-boutiques", "noopener,noreferrer");
+  };
 
   const boutiquesButton = (
     <button className="pjd-boutiques-under-sell" onClick={openAllShops} type="button" aria-label="Voir toutes les boutiques">
@@ -90,7 +84,6 @@ export default function MarketplaceTopNav({ session, shop, onOpenAffiliate, onOp
       </div>
     </div>
     {cartNotice && <div className="pjd-cart-notice" role="status">{cartNotice}</div>}
-    {showAllShops && <div className="pjd-all-shops-modal"><button className="pjd-all-shops-close" type="button" onClick={() => setShowAllShops(false)} aria-label="Fermer les boutiques"><X size={21}/></button><AllShopsPage onBack={() => setShowAllShops(false)} onOpenShop={(shopId) => { setShowAllShops(false); window.dispatchEvent(new CustomEvent("pjd-open-shop", { detail: { shopId } })); }} /></div>}
     {boutiquesTarget && createPortal(boutiquesButton, boutiquesTarget)}
   </>);
 }
