@@ -51,8 +51,11 @@ export default function MarketplaceTopNav({ session, shop, onOpenAffiliate, onOp
   return (<>
     <MultiVendorCheckout session={session} />
     <style>{`
-      .pjd-topnav{width:100%;position:relative;z-index:1000}
-      .pjd-topnav-actions{display:flex!important;align-items:center;gap:6px;overflow-x:auto;white-space:nowrap;scrollbar-width:none;padding:5px 4px}
+      .pjd-topnav{width:100%;position:relative;z-index:1000;min-height:58px;display:flex;align-items:center;padding:0 12px}
+      .pjd-topnav-brand{display:flex;align-items:center;gap:5px;font-size:18px;line-height:1;white-space:nowrap}
+      .pjd-topnav-brand b{font-weight:950}
+      .pjd-topnav-brand span{font-weight:700;letter-spacing:.08em}
+      .pjd-topnav-actions{display:flex!important;align-items:center;gap:6px;overflow-x:auto;white-space:nowrap;scrollbar-width:none;padding:5px 4px;margin-left:auto}
       .pjd-topnav-actions::-webkit-scrollbar{display:none}
       .pjd-action{flex:0 0 auto!important;min-width:max-content}
       .pjd-cart-action{position:relative}
@@ -60,12 +63,19 @@ export default function MarketplaceTopNav({ session, shop, onOpenAffiliate, onOp
       .pjd-boutiques-cta-slot{width:100%;margin-top:8px}
       .pjd-boutiques-under-sell{display:flex!important;align-items:center;justify-content:center;gap:8px;width:100%;background:#f97316!important;color:#fff!important;border:0!important;border-radius:12px!important;padding:11px 16px!important;font-weight:900!important;font-size:14px!important;box-shadow:0 5px 14px rgba(249,115,22,.28);cursor:pointer}
       .pjd-boutiques-under-sell svg{width:19px;height:19px}
+      .pjd-topnav:not(:has(.pjd-action.pjd-create-shop)) .pjd-topnav-actions{margin-left:auto}
       @media(max-width:700px){
-        .pjd-topnav{position:relative;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.08)}
-        .pjd-topnav-actions{width:100%;padding:7px 8px;gap:7px}
+        .pjd-topnav{position:relative;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.08);min-height:54px;padding:0 8px}
+        .pjd-topnav-brand{font-size:15px}
+        .pjd-topnav-actions{margin-left:auto;width:auto;max-width:72%;padding:7px 0 7px 7px;gap:6px}
         .pjd-action{font-size:12px!important;padding:8px 10px!important}
         .pjd-boutiques-cta-slot{margin-top:7px}
         .pjd-boutiques-under-sell{font-size:14px!important;padding:12px 16px!important}
+      }
+      @media(max-width:420px){
+        .pjd-topnav-brand span{display:none}
+        .pjd-topnav-actions{max-width:78%}
+        .pjd-action{padding:7px 8px!important}
       }
     `}</style>
     <div className="pjd-topnav">
@@ -78,7 +88,7 @@ export default function MarketplaceTopNav({ session, shop, onOpenAffiliate, onOp
           <button className="pjd-action pjd-shop" onClick={openShop}><Store /><span>{shop ? "Ma boutique" : "Créer ma boutique"}</span></button>
           <button className="pjd-action" onClick={() => onOpenAccount?.("account")}><User /><span>Mon compte</span></button>
         </> : <>
-          <button className="pjd-action" onClick={() => onOpenAuth?.("login")}><LogIn /><span>Se connecter</span></button>
+          <button className="pjd-action" onClick={() => onOpenAuth?.("login")}><LogIn /><span>Connexion</span></button>
           <button className="pjd-action pjd-create-shop" onClick={() => onOpenAuth?.("signup")}><UserPlus /><span>S'inscrire</span></button>
         </>}
       </div>
