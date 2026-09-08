@@ -22,6 +22,7 @@ import MarketplaceTopNav, { CreateShopFlow } from './MarketplaceTopNav.jsx';
 import SellerSpaceNav from './SellerSpaceNav.jsx';
 import PublicShopPage from './PublicShopPage.jsx';
 import FavoritesPage from './FavoritesPage.jsx';
+import AllShopsPage from './AllShopsPage.jsx';
 import DigitalProductUploader from './DigitalProductUploader.jsx';
 import AffiliatePage from './AffiliatePage.jsx';
 import PublicationAssistant from './ai/PublicationAssistant.jsx';
@@ -39,7 +40,8 @@ const SELLER_ROUTES = {
 };
 
 export default function App() {
-  const [screen, setScreen] = useState('market');
+  const isShopsWindow = new URLSearchParams(window.location.search).get('pjd_shops_window') === '1';
+  const [screen, setScreen] = useState(isShopsWindow ? 'all-shops-window' : 'market');
   const [accountSession, setAccountSession] = useState(null);
   const [shopFlow, setShopFlow] = useState(false);
   const [shop, setShop] = useState(null);
@@ -202,8 +204,9 @@ export default function App() {
   );
 
   const renderScreen = () => {
+    if (screen === 'all-shops-window') return <AllShopsPage onBack={() => { if (window.opener) window.close(); else window.location.href = '/'; }} onOpenShop={(shopId) => { setPublicShopId(shopId); setScreen('public-shop'); }} />;
     if (screen === 'product' && selectedProduct) return <ProductDetail product={selectedProduct} onBack={() => { window.history.replaceState({}, '', '/'); setSelectedProduct(null); setScreen('market'); }} onBuy={(product) => { setSelectedProduct(null); setScreen('market'); window.dispatchEvent(new CustomEvent('pjd-add-to-cart', { detail: product })); }} />;
-    if (screen === 'public-shop') return <PublicShopPage shopId={publicShopId} onBack={() => { setPublicShopId(null); setScreen('market'); }} onAdd={(product) => window.dispatchEvent(new CustomEvent('pjd-add-to-cart', { detail: product }))} />;
+    if (screen === 'public-shop') return <PublicShopPage shopId={publicShopId} onBack={() => { setPublicShopId(null); setScreen(isShopsWindow ? 'all-shops-window' : 'market'); }} onAdd={(product) => window.dispatchEvent(new CustomEvent('pjd-add-to-cart', { detail: product }))} />;
     if (screen === 'favorites') return <FavoritesPage onBack={() => setScreen('market')} />;
     if (screen === 'features') return <PjdMakerFeatures onBack={() => setScreen('market')} />;
     if (screen === 'affiliate') return <AffiliatePage session={accountSession} onBack={() => setScreen('market')} />;
@@ -223,14 +226,14 @@ export default function App() {
 
   return (
     <AuthGate onSessionChange={handleAuthSession}>
-      <PhotoPickerEnhancer session={accountSession} />
-      {screen === 'market' && <MarketplaceTopNav session={accountSession} onOpenCart={openCart} onOpenSeller={openSeller} onOpenAccount={(section) => section === 'favorites' ? setScreen('favorites') : openAccount(section)} onOpenAffiliate={() => setScreen('affiliate')} onOpenAuth={(mode) => setAuthMode(mode)} />}
+      {!isShopsWindow && <PhotoPickerEnhancer session={accountSession} />}
+      {!isShopsWindow && screen === 'market' && <MarketplaceTopNav session={accountSession} onOpenCart={openCart} onOpenSeller={openSeller} onOpenAccount={(section) => section === 'favorites' ? setScreen('favorites') : openAccount(section)} onOpenAffiliate={() => setScreen('affiliate')} onOpenAuth={(mode) => setAuthMode(mode)} />}
       <div onClickCapture={handleClick}>{renderScreen()}</div>
-      {showUploader && <DigitalProductUploader session={accountSession} shop={shop} onClose={() => setShowUploader(false)} onSaved={() => setShowUploader(false)} />}
-      {showAIPublisher && <PublicationAssistant onClose={() => setShowAIPublisher(false)} onPublished={async (data) => { try { const row = await saveAIDraft(data); alert(`Produit « ${row.title} » enregistré en brouillon dans votre catalogue.`); } catch (error) { alert(error.message || 'Impossible d’enregistrer le produit'); } }} />}
-      {showAICenter && <AICenter onClose={() => setShowAICenter(false)} />}
-      {shopFlow && <CreateShopFlow session={accountSession} onClose={() => setShopFlow(false)} onDone={finishShop} />}
-      {authMode && <AuthModal mode={authMode} onClose={() => setAuthMode(null)} onSuccess={handleAuthSession} onSignup={() => setAuthMode('signup')} />}
+      {!isShopsWindow && showUploader && <DigitalProductUploader session={accountSession} shop={shop} onClose={() => setShowUploader(false)} onSaved={() => setShowUploader(false)} />}
+      {!isShopsWindow && showAIPublisher && <PublicationAssistant onClose={() => setShowAIPublisher(false)} onPublished={async (data) => { try { const row = await saveAIDraft(data); alert(`Produit « ${row.title} » enregistré en brouillon dans votre catalogue.`); } catch (error) { alert(error.message || 'Impossible d’enregistrer le produit'); } }} />}
+      {!isShopsWindow && showAICenter && <AICenter onClose={() => setShowAICenter(false)} />}
+      {!isShopsWindow && shopFlow && <CreateShopFlow session={accountSession} onClose={() => setShopFlow(false)} onDone={finishShop} />}
+      {!isShopsWindow && authMode && <AuthModal mode={authMode} onClose={() => setAuthMode(null)} onSuccess={handleAuthSession} onSignup={() => setAuthMode('signup')} />}
     </AuthGate>
   );
 }
