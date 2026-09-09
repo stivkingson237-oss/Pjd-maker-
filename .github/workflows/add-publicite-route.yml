@@ -1,0 +1,33 @@
+name: Add Publicite seller route
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch seller route
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('src/App.jsx')
+          s=p.read_text()
+          old="const SELLER_ROUTES={dashboard:'dashboard',shop:'shop',products:'products',stock:'stock',orders:'orders',finance:'finance',settings:'settings',crm:'crm',messages:'messages',marketing:'marketing',loyalty:'loyalty',referral:'referral',ads:'ads',opportunities:'opportunities',notifications:'notifications',stats:'stats'};"
+          new="const SELLER_ROUTES={dashboard:'dashboard',shop:'shop',products:'products',stock:'stock',orders:'orders',finance:'finance',settings:'settings',crm:'crm',messages:'messages',marketing:'marketing',loyalty:'loyalty',referral:'referral',ads:'ads',opportunities:'opportunities',publicite:'publicite',notifications:'notifications',stats:'stats'};"
+          if old in s: s=s.replace(old,new,1)
+          old2="case'marketing':case'loyalty':case'referral':case'ads':case'opportunities':return <SellerGrowthHubV2 session={accountSession} initialTab={sellerTab} onBack={()=>setSellerTab('dashboard')}/>;"
+          new2="case'marketing':case'loyalty':case'referral':case'ads':case'opportunities':case'publicite':return <SellerGrowthHubV2 session={accountSession} initialTab={sellerTab==='publicite'?'publication':sellerTab} onBack={()=>setSellerTab('dashboard')}/>;"
+          if old2 in s: s=s.replace(old2,new2,1)
+          p.write_text(s)
+          PY
+          if git diff --quiet; then echo 'No changes'; exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/App.jsx
+          git commit -m 'feat: route seller Publicité space'
+          git push
