@@ -1,0 +1,33 @@
+name: Improve promotion product selector
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Améliorer le sélecteur produit des promotions
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('src/SellerGrowthHubV2.jsx')
+          s = p.read_text(encoding='utf-8')
+          old = '''<label><b>1. Produit à promouvoir</b><select value={form.product} onChange={e=>setForm(x=>({...x,product:e.target.value}))} style={{width:'100%',padding:11,marginTop:6}}><option value="">Sélectionner un produit…</option>{products.map(p=><option key={p.id} value={p.id}>{p.title} — {money(p.price)}</option>)}</select></label>'''
+          new = '''<div><b>1. Produit à promouvoir</b><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(210px,1fr))',gap:10,marginTop:8}}>{products.length?products.map(p=>{const selected=form.product===p.id;return <button key={p.id} type="button" onClick={()=>setForm(x=>({...x,product:p.id,second:x.second===p.id?'':x.second}))} style={{textAlign:'left',padding:10,border:selected?'2px solid #f97316':'1px solid #e5e7eb',borderRadius:14,background:selected?'#fff7ed':'#fff',cursor:'pointer',boxShadow:selected?'0 0 0 2px rgba(249,115,22,.08)':'none'}}>{imgOf(p)&&<img src={imgOf(p)} alt="" style={{width:'100%',height:120,objectFit:'cover',borderRadius:10,marginBottom:8}}/>}<div style={{fontWeight:900}}>{p.title}</div><div style={{marginTop:4,fontWeight:800}}>{money(p.price)}</div><small style={{display:'block',marginTop:3,color:'#667085'}}>Stock : {p.stock??0} · {p.category||'Sans catégorie'}</small><div style={{marginTop:7,fontSize:12,fontWeight:900,color:selected?'#f97316':'#667085'}}>{selected?'✓ Produit sélectionné':'Sélectionner ce produit'}</div></button>}) : <div style={{padding:12,background:'#f8fafc',borderRadius:12}}>Aucun produit trouvé dans votre boutique.</div>}</div></div>'''
+          if old in s:
+              s = s.replace(old, new, 1)
+              p.write_text(s, encoding='utf-8')
+          else:
+              print('Sélecteur déjà amélioré ou motif introuvable; aucune modification.')
+      - name: Commit
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/SellerGrowthHubV2.jsx
+          if git diff --cached --quiet; then echo "Aucun changement"; exit 0; fi
+          git commit -m "Améliorer sélection et réglages de promotion"
+          git push
