@@ -1,0 +1,2 @@
+[functions.mtn-webhook]
+verify_jwt = false
