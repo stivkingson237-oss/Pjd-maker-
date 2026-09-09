@@ -1,0 +1,34 @@
+name: Add promotion social panel
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Integrate panel
+        shell: python
+        run: |
+          from pathlib import Path
+          p=Path('src/SellerGrowthHubV2.jsx')
+          s=p.read_text(encoding='utf-8')
+          imp="import PromotionSocialPanel from'./PromotionSocialPanel.jsx';"
+          if imp not in s:
+              s=s.replace("import PublicationAssistant from'./ai/PublicationAssistant.jsx';", "import PublicationAssistant from'./ai/PublicationAssistant.jsx';"+imp,1)
+          marker="{tab==='promos'&&<section><h2>🏷️ Promotions</h2>"
+          replacement="{tab==='promos'&&<section><h2>🏷️ Promotions</h2><PromotionSocialPanel session={session}/>"
+          if '<PromotionSocialPanel session={session}/>' not in s and marker in s:
+              s=s.replace(marker,replacement,1)
+          p.write_text(s,encoding='utf-8')
+      - name: Commit integration
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/SellerGrowthHubV2.jsx
+          if git diff --cached --quiet; then echo "Aucun changement"; exit 0; fi
+          git commit -m "Afficher les réseaux synchronisés dans Promotions"
+          git push
