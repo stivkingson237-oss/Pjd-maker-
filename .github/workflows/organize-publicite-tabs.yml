@@ -1,0 +1,30 @@
+name: Organize Publicité tabs
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rename and prioritize visibility tabs
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('src/SellerGrowthHubV2.jsx')
+          s=p.read_text()
+          old="const tabs=[['marketing','📣 IA Marketing'],['publication','✨ IA Publication'],['analytics','📊 IA Commerciale'],['promos','🏷️ Promotions'],['ads','🚀 PJD Ads'],['referral','👥 Parrainage'],['opportunities','💡 Opportunités'],['stock','📦 Stock'],['seo','🔎 SEO']];"
+          new="const tabs=[['publication','📤 Publier'],['promos','🏷️ Promotion'],['ads','📣 Publicité'],['marketing','📣 IA Marketing'],['analytics','📊 IA Commerciale'],['referral','👥 Parrainage'],['opportunities','💡 Opportunités'],['stock','📦 Stock'],['seo','🔎 SEO']];"
+          if old in s: s=s.replace(old,new,1)
+          p.write_text(s)
+          PY
+          if git diff --quiet; then echo 'No changes'; exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/SellerGrowthHubV2.jsx
+          git commit -m 'feat: organize seller visibility tabs as Publier Promotion Publicité'
+          git push
