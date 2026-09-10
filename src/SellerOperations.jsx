@@ -2,15 +2,65 @@ import React, { useEffect, useState } from 'react';
 import { Bell, Truck, Star, Wallet, RefreshCw, PackageCheck } from 'lucide-react';
 import { supabase } from './lib/supabase.js';
 import SellerAdminChatLauncher from './SellerAdminChatLauncher.jsx';
+const ADMIN_ID = 'ef5f94b8-8f3b-498b-8b78-a93083053704';
 const money = n => `${Number(n || 0).toLocaleString('fr-FR')} FCFA`;
 const steps = ['pending','confirmed','processing','shipped','delivered'];
 const labels = {pending:'En attente',confirmed:'Confirmée',processing:'Préparation',shipped:'Expédiée',delivered:'Livrée',cancelled:'Annulée'};
 const card = { background:'#fff', border:'1px solid #e3e6ec', borderRadius:14, padding:16, boxShadow:'0 4px 16px rgba(16,24,40,.04)' };
 const input = { width:'100%', boxSizing:'border-box', padding:12, border:'1px solid #d0d5dd', borderRadius:10, background:'#fff' };
+
+async function ensureAutomaticSellerMessages(userId) {
+  if (!userId) return;
+  try {
+    const { data: existing } = await supabase
+      .from('messages')
+      .select('id,content')
+      .eq('sender_id', ADMIN_ID)
+      .eq('receiver_id', userId)
+      .like('content', 'Bienvenue sur PJD Market !%')
+      .limit(1);
+
+    if (!existing?.length) {
+      await supabase.from('messages').insert({
+        sender_id: ADMIN_ID,
+        receiver_id: userId,
+        content: 'Bienvenue sur PJD Market ! Vous avez la possibilité de nous poser toutes vos questions concernant PJD Market. Notre équipe est là pour vous accompagner.'
+      });
+    }
+
+    const { data: shops } = await supabase
+      .from('shops')
+      .select('id,shop_name,certification_status')
+      .eq('owner_id', userId);
+
+    for (const shop of shops || []) {
+      if (String(shop.certification_status || '').toLowerCase() !== 'certified') continue;
+      const prefix = `Félicitations ! Votre boutique « ${shop.shop_name || 'PJD Market'} » est maintenant certifiée`;
+      const { data: certificationMessages } = await supabase
+        .from('messages')
+        .select('id')
+        .eq('sender_id', ADMIN_ID)
+        .eq('receiver_id', userId)
+        .like('content', `${prefix}%`)
+        .limit(1);
+      if (!certificationMessages?.length) {
+        await supabase.from('messages').insert({
+          sender_id: ADMIN_ID,
+          receiver_id: userId,
+          content: `${prefix} sur PJD Market. Vous pouvez continuer à développer votre activité en toute confiance.`
+        });
+      }
+    }
+  } catch (_) {
+    // The chat remains usable even if an automatic notification cannot be created.
+  }
+}
+
 export default function SellerOperations({ session, onBack, initialTab='orders' }) {
   const [tab,setTab]=useState(initialTab||'orders'),[orders,setOrders]=useState([]),[notifications,setNotifications]=useState([]),[wallet,setWallet]=useState(0),[withdrawals,setWithdrawals]=useState([]),[reviews,setReviews]=useState([]),[loading,setLoading]=useState(false),[error,setError]=useState('');
   const [withdraw,setWithdraw]=useState({amount:'',method:'Mobile Money',destination:''}); const userId=session?.user?.id;
   useEffect(()=>setTab(initialTab||'orders'),[initialTab]);
+  useEffect(()=>{ensureAutomaticSellerMessages(userId)},[userId]);
   const load=async()=>{if(!userId)return;setLoading(true);setError('');try{const[o,n,w,tx,r]=await Promise.all([supabase.rpc('get_seller_operations'),supabase.from('notifications').select('*').eq('user_id',userId).order('created_at',{ascending:false}).limit(30),supabase.from('withdrawal_requests').select('*').eq('user_id',userId).order('requested_at',{ascending:false}).limit(20),supabase.from('wallet_transactions').select('type,amount,status').eq('user_id',userId),supabase.from('reviews').select('*').eq('seller_id',userId).order('created_at',{ascending:false}).limit(30)]);const err=[o,n,w,tx,r].find(x=>x.error)?.error;if(err)throw err;setOrders(o.data||[]);setNotifications(n.data||[]);setWithdrawals(w.data||[]);setReviews(r.data||[]);setWallet((tx.data||[]).reduce((s,x)=>['completed','success','pending'].includes(x.status)?s+(['withdrawal','debit'].includes(x.type)?-Number(x.amount):Number(x.amount)):s,0));}catch(e){setError(e.message||'Impossible de charger les opérations.')}finally{setLoading(false)}};
   useEffect(()=>{load()},[userId]);
   const updateStatus=async(orderId,status)=>{setError('');const{error}=await supabase.rpc('set_seller_order_status',{p_order_id:orderId,p_status:status});if(error)setError(error.message);else load()};
