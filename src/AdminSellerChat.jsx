@@ -19,14 +19,28 @@ export default function AdminSellerChat({ session, mode = 'seller', onBack }) {
     if (!me) return;
     setLoading(true);
     setError('');
-    const { data, error: e } = await supabase.from('messages').select('id,sender_id,receiver_id,content,read_at,created_at').order('created_at', { ascending: true });
-    if (e) setError(e.message);
+    const { data, error: e } = await supabase
+      .from('messages')
+      .select('id,sender_id,receiver_id,content,read_at,created_at')
+      .order('created_at', { ascending: true });
+    if (e) {
+      setError(`Impossible de charger les messages : ${e.message}`);
+      setMessages([]);
+      setLoading(false);
+      return;
+    }
     const rows = data || [];
     if (adminMode) {
       const ids = [...new Set(rows.flatMap(r => [r.sender_id, r.receiver_id]).filter(id => id && id !== me))];
       if (ids.length) {
-        const { data: profiles } = await supabase.from('profiles').select('id,name,email,prenom,role,shop_id').in('id', ids);
+        const { data: profiles, error: pe } = await supabase
+          .from('profiles')
+          .select('id,name,email,prenom,role,store_id')
+          .in('id', ids);
+        if (pe) setError(`Impossible de charger les vendeurs : ${pe.message}`);
         setSellers(profiles || []);
+      } else {
+        setSellers([]);
       }
     }
     setMessages(rows);
@@ -37,7 +51,8 @@ export default function AdminSellerChat({ session, mode = 'seller', onBack }) {
 
   useEffect(() => {
     if (!me) return;
-    const channel = supabase.channel(`pjd-admin-chat-${me}`)
+    const channel = supabase
+      .channel(`pjd-admin-chat-${me}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => load())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -45,14 +60,18 @@ export default function AdminSellerChat({ session, mode = 'seller', onBack }) {
 
   const other = adminMode ? selected : ADMIN_ID;
   const visible = messages.filter(r => other && ((r.sender_id === me && r.receiver_id === other) || (r.sender_id === other && r.receiver_id === me)));
-  const selectedProfile = sellers.find(s => s.id === selected);
 
   async function send(e) {
     e.preventDefault();
     const content = text.trim();
     if (!content || !me || !other) return;
+    setError('');
     const { error: e2 } = await supabase.from('messages').insert({ sender_id: me, receiver_id: other, content });
-    if (e2) setError(e2.message); else setText('');
+    if (e2) {
+      setError(`Message non envoyé : ${e2.message}`);
+      return;
+    }
+    setText('');
     await load();
   }
 
@@ -66,7 +85,9 @@ export default function AdminSellerChat({ session, mode = 'seller', onBack }) {
     </header>
     {error && <div className='pjd-chat-error'>{error}</div>}
     <main className='pjd-chat-layout'>
-      {adminMode && <aside className='pjd-chat-list'>{sellers.map(s => <button key={s.id} className={selected === s.id ? 'active' : ''} onClick={() => setSelected(s.id)}><b>🏪</b><span>{s.name || s.prenom || s.email || 'Vendeur'}</span></button>)}</aside>}
+      {adminMode && <aside className='pjd-chat-list'>
+        {sellers.length === 0 ? <div className='pjd-chat-empty'>Aucun vendeur n’a encore envoyé de message.</div> : sellers.map(s => <button key={s.id} className={selected === s.id ? 'active' : ''} onClick={() => setSelected(s.id)}><b>🏪</b><span>{s.name || s.prenom || s.email || 'Vendeur'}</span></button>)}
+      </aside>}
       <section className='pjd-chat-window'>
         <div className='pjd-chat-messages'>
           {!other ? <div className='pjd-chat-empty'>Sélectionnez un vendeur pour voir la conversation.</div> : loading && !visible.length ? <div className='pjd-chat-empty'>Chargement…</div> : !visible.length ? <div className='pjd-chat-empty'>Aucun message. Commencez la conversation.</div> : visible.map(m => <div key={m.id} className={m.sender_id === me ? 'mine pjd-chat-bubble' : 'theirs pjd-chat-bubble'}><div>{m.content}</div><small>{new Date(m.created_at).toLocaleString('fr-FR')}</small></div>)}
