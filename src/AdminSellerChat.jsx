@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, MessageCircle, Send, Store, UserRound } from 'lucide-react';
+import { ArrowLeft, MessageCircle, Send, Store, UserRound, CheckCircle2 } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import './admin-seller-chat.css';
 
@@ -32,32 +32,37 @@ export default function AdminSellerChat({ session, mode = 'seller', onBack }) {
 
     const allMessages = rows || [];
     if (adminMode) {
-      const { data: profiles, error: pe } = await supabase
-        .from('profiles')
-        .select('id,name,email,prenom,role,store_id')
-        .eq('role', 'seller')
-        .order('name', { ascending: true });
-
-      if (pe) {
-        setError(`Impossible de charger les vendeurs : ${pe.message}`);
+      const { data: shopRows, error: se } = await supabase
+        .from('shops')
+        .select('id,owner_id,shop_name,slug,logo,banner,certification_status,status')
+        .not('owner_id', 'is', null)
+        .order('shop_name', { ascending: true });
+      if (se) {
+        setError(`Impossible de charger les vendeurs : ${se.message}`);
         setSellers([]);
       } else {
-        const sellerRows = profiles || [];
-        const ownerIds = sellerRows.map(s => s.id).filter(Boolean);
-        let shops = [];
+        const shops = shopRows || [];
+        const ownerIds = shops.map(s => s.owner_id).filter(Boolean);
+        let profiles = [];
         if (ownerIds.length) {
-          const { data: shopRows, error: se } = await supabase
-            .from('shops')
-            .select('id,owner_id,shop_name,slug,logo,banner,certification_status')
-            .in('owner_id', ownerIds);
-          if (se) setError(`Impossible de charger les boutiques : ${se.message}`);
-          shops = shopRows || [];
+          const { data: profileRows } = await supabase
+            .from('profiles')
+            .select('id,name,email,prenom,phone,telephone,role')
+            .in('id', ownerIds);
+          profiles = profileRows || [];
         }
-        const merged = sellerRows.map(s => ({
-          ...s,
-          shop: shops.find(x => x.owner_id === s.id) || null,
-          hasMessages: allMessages.some(m => m.sender_id === s.id || m.receiver_id === s.id)
-        }));
+        const merged = shops.map(shop => {
+          const profile = profiles.find(p => p.id === shop.owner_id) || {};
+          return {
+            id: shop.owner_id,
+            name: profile.name,
+            prenom: profile.prenom,
+            email: profile.email,
+            phone: profile.phone || profile.telephone,
+            shop,
+            hasMessages: allMessages.some(m => m.sender_id === shop.owner_id || m.receiver_id === shop.owner_id)
+          };
+        });
         setSellers(merged);
         if (selected && !merged.some(s => s.id === selected)) setSelected(null);
       }
@@ -103,20 +108,21 @@ export default function AdminSellerChat({ session, mode = 'seller', onBack }) {
       <div>
         <span><MessageCircle size={14}/> MESSAGERIE</span>
         <h2>{adminMode ? 'Messagerie des vendeurs' : 'Chat avec l’administration'}</h2>
-        <p>{adminMode ? 'Tous les vendeurs sont disponibles ici. Cliquez sur un vendeur pour discuter.' : 'Échangez directement avec l’administration PJD Market.'}</p>
+        <p>{adminMode ? 'Toutes les boutiques vendeuses sont disponibles ici. Cliquez sur une boutique pour discuter.' : 'Échangez directement avec l’administration PJD Market.'}</p>
       </div>
       <button onClick={load} aria-label='Actualiser'>↻</button>
     </header>
     {error && <div className='pjd-chat-error'>{error}</div>}
     <main className='pjd-chat-layout'>
       {adminMode && <aside className='pjd-chat-list'>
-        {sellers.length === 0 ? <div className='pjd-chat-empty'>Aucun vendeur disponible.</div> : sellers.map(s => {
+        {sellers.length === 0 ? <div className='pjd-chat-empty'>Aucune boutique vendeuse disponible.</div> : sellers.map(s => {
           const photo = s.shop?.logo || s.shop?.banner || '';
           const name = s.shop?.shop_name || s.name || s.prenom || s.email || 'Vendeur';
+          const certified = String(s.shop?.certification_status || '').toLowerCase() === 'certified';
           return <button key={s.id} className={selected === s.id ? 'active' : ''} onClick={() => setSelected(s.id)}>
             <span className='pjd-seller-avatar'>{photo ? <img src={photo} alt={name}/> : <UserRound size={22}/>}</span>
-            <span className='pjd-seller-meta'><b>{name}</b><small>{s.shop?.certification_status === 'certified' ? '✓ Boutique certifiée' : 'Vendeur PJD Market'}{s.hasMessages ? ' · Conversation' : ''}</small></span>
-            <MessageCircle size={18}/>
+            <span className='pjd-seller-meta'><b>{name}</b><small>{certified ? '✓ Boutique certifiée' : 'Vendeur PJD Market'}{s.hasMessages ? ' · Conversation' : ''}</small></span>
+            {certified ? <CheckCircle2 size={17}/> : <MessageCircle size={18}/>} 
           </button>;
         })}
       </aside>}
@@ -126,7 +132,7 @@ export default function AdminSellerChat({ session, mode = 'seller', onBack }) {
           <div><b>{selectedSeller.shop?.shop_name || selectedSeller.name || selectedSeller.prenom || 'Vendeur'}</b><small>{selectedSeller.email || selectedSeller.phone || ''}</small></div>
         </div>}
         <div className='pjd-chat-messages'>
-          {!other ? <div className='pjd-chat-empty'>Sélectionnez un vendeur pour voir la conversation.</div> : loading && !visible.length ? <div className='pjd-chat-empty'>Chargement…</div> : !visible.length ? <div className='pjd-chat-empty'>Aucun message. Commencez la conversation.</div> : visible.map(m => <div key={m.id} className={m.sender_id === me ? 'mine pjd-chat-bubble' : 'theirs pjd-chat-bubble'}><div>{m.content}</div><small>{new Date(m.created_at).toLocaleString('fr-FR')}</small></div>)}
+          {!other ? <div className='pjd-chat-empty'>Sélectionnez une boutique pour voir ou démarrer la conversation.</div> : loading && !visible.length ? <div className='pjd-chat-empty'>Chargement…</div> : !visible.length ? <div className='pjd-chat-empty'>Aucun message. Commencez la conversation.</div> : visible.map(m => <div key={m.id} className={m.sender_id === me ? 'mine pjd-chat-bubble' : 'theirs pjd-chat-bubble'}><div>{m.content}</div><small>{new Date(m.created_at).toLocaleString('fr-FR')}</small></div>)}
         </div>
         {other && <form className='pjd-chat-composer' onSubmit={send}><input value={text} onChange={e => setText(e.target.value)} placeholder='Écrire un message…'/><button disabled={!text.trim()}><Send size={17}/> Envoyer</button></form>}
       </section>
