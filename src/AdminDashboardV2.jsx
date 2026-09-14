@@ -1,2 +1,62 @@
-import React,{useEffect,useState}from'react';import AdminDashboard from'./AdminDashboard.jsx';import ReferralAdminSettings from'./ReferralAdminSettings.jsx';import AdminSellerChat from'./AdminSellerChat.jsx';import{supabase}from'./lib/supabase';
-export default function AdminDashboardV2(props){const[admin,setAdmin]=useState(false),[open,setOpen]=useState(false),[chat,setChat]=useState(false),[session,setSession]=useState(null);useEffect(()=>{supabase.auth.getSession().then(async({data})=>{setSession(data.session);if(!data.session)return;const[{data:u},{data:p}]=await Promise.all([supabase.from('users').select('role').eq('id',data.session.user.id).maybeSingle(),supabase.from('profiles').select('role').eq('id',data.session.user.id).maybeSingle()]);setAdmin(u?.role==='admin'||String(p?.role||'').toLowerCase()==='admin')})},[]);return <><AdminDashboard {...props}/>{admin&&<><button onClick={()=>setOpen(true)} style={{position:'fixed',right:20,bottom:92,zIndex:9999,padding:'12px 16px',border:0,borderRadius:11,background:'#7c3aed',color:'#fff',fontWeight:900,cursor:'pointer',boxShadow:'0 8px 30px rgba(0,0,0,.2)'}}>⚙️ Parrainage</button><button onClick={()=>setChat(true)} style={{position:'fixed',right:20,bottom:145,zIndex:9999,padding:'12px 16px',border:0,borderRadius:11,background:'#f97316',color:'#fff',fontWeight:900,cursor:'pointer',boxShadow:'0 8px 30px rgba(0,0,0,.2)'}}>💬 Messages vendeurs</button></>}{open&&<ReferralAdminSettings onClose={()=>setOpen(false)}/>} {chat&&<div style={{position:'fixed',inset:0,zIndex:10000,background:'#fff',overflow:'auto'}}><AdminSellerChat session={session} mode='admin' onBack={()=>setChat(false)}/></div>}</>}
+import React,{useEffect,useState}from'react';
+import AdminDashboard from'./AdminDashboard.jsx';
+import ReferralAdminSettings from'./ReferralAdminSettings.jsx';
+import AdminSellerChat from'./AdminSellerChat.jsx';
+import{supabase}from'./lib/supabase';
+
+const ADMIN_UI_CSS=`
+/* PJD MARKET — interface administrateur responsive */
+.pjd-admin-shell{min-height:100vh;background:#f5f7fa}
+.pjd-admin-shell .pjd-admin-tools{position:fixed;left:14px;bottom:18px;z-index:10001;display:flex;flex-direction:column;gap:8px;width:210px}
+.pjd-admin-shell .pjd-admin-tools button{border:0;border-radius:12px;padding:11px 13px;font:800 13px Inter,system-ui,sans-serif;cursor:pointer;text-align:left;box-shadow:0 8px 24px rgba(15,23,42,.14);transition:transform .16s ease,box-shadow .16s ease}
+.pjd-admin-shell .pjd-admin-tools button:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(15,23,42,.18)}
+.pjd-admin-shell .pjd-admin-tools .verify{background:#111827;color:#fff}
+.pjd-admin-shell .pjd-admin-tools .promo{background:#f97316;color:#fff}
+.pjd-admin-shell .pjd-admin-tools .chat{background:#fff;color:#111827;border:1px solid #e5e7eb}
+.pjd-admin-shell header{position:sticky!important;top:0;z-index:50;min-height:72px;box-sizing:border-box;box-shadow:0 1px 0 rgba(15,23,42,.08)}
+.pjd-admin-shell main{max-width:none!important;margin:0!important;padding:24px 28px 110px 28px!important;box-sizing:border-box}
+.pjd-admin-shell main>div:has(>button){display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:5px!important;position:fixed!important;left:0!important;top:73px!important;bottom:0!important;width:238px!important;padding:18px 12px!important;margin:0!important;background:#fff!important;border-right:1px solid #e5e7eb!important;overflow-y:auto!important;z-index:40!important;box-sizing:border-box!important;box-shadow:2px 0 16px rgba(15,23,42,.04)!important}
+.pjd-admin-shell main>div:has(>button) button{width:100%!important;min-height:44px!important;justify-content:flex-start!important;border-radius:10px!important;padding:10px 12px!important;font-size:13px!important;box-sizing:border-box!important}
+.pjd-admin-shell main>div:has(>button) button:last-child{margin:10px 0 0!important;border-top:1px solid #e5e7eb!important;border-radius:10px!important}
+.pjd-admin-shell main>div:has(>button)+*{margin-left:260px!important;max-width:calc(100% - 260px)!important}
+.pjd-admin-shell main>div:has(>button)+div{margin-left:260px!important;max-width:calc(100% - 260px)!important}
+.pjd-admin-shell main>div:has(>button)~section,.pjd-admin-shell main>div:has(>button)~div{max-width:calc(100% - 260px)}
+.pjd-admin-shell main section,.pjd-admin-shell main section>div{box-sizing:border-box}
+.pjd-admin-shell main section{box-shadow:0 5px 22px rgba(15,23,42,.05)!important;border-radius:16px!important}
+.pjd-admin-shell main h2{letter-spacing:-.02em}
+@media(max-width:900px){
+ .pjd-admin-shell header{position:relative!important}
+ .pjd-admin-shell main{padding:14px 12px 170px!important}
+ .pjd-admin-shell main>div:has(>button){position:sticky!important;top:0!important;left:auto!important;bottom:auto!important;width:100%!important;height:auto!important;max-height:none!important;flex-direction:row!important;align-items:center!important;overflow-x:auto!important;overflow-y:hidden!important;padding:8px!important;margin:0 0 14px!important;border:1px solid #e5e7eb!important;border-radius:14px!important;box-shadow:0 4px 16px rgba(15,23,42,.06)!important}
+ .pjd-admin-shell main>div:has(>button) button{width:auto!important;min-width:max-content!important;justify-content:center!important;white-space:nowrap!important}
+ .pjd-admin-shell main>div:has(>button) button:last-child{margin:0!important;border-top:0!important}
+ .pjd-admin-shell main>div:has(>button)+*{margin-left:0!important;max-width:100%!important}
+ .pjd-admin-shell main>div:has(>button)~section,.pjd-admin-shell main>div:has(>button)~div{max-width:100%}
+ .pjd-admin-shell .pjd-admin-tools{left:10px;right:10px;bottom:10px;width:auto;display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+ .pjd-admin-shell .pjd-admin-tools button{text-align:center;padding:10px 6px;font-size:11px;box-shadow:0 6px 18px rgba(15,23,42,.16)}
+}
+@media(max-width:560px){
+ .pjd-admin-shell header h1{font-size:20px!important}
+ .pjd-admin-shell header small{font-size:11px!important}
+ .pjd-admin-shell main{padding-left:9px!important;padding-right:9px!important}
+ .pjd-admin-shell main section{padding:13px!important}
+}
+`;
+
+export default function AdminDashboardV2(props){
+ const[admin,setAdmin]=useState(false),[open,setOpen]=useState(false),[chat,setChat]=useState(false),[session,setSession]=useState(null);
+ useEffect(()=>{supabase.auth.getSession().then(async({data})=>{setSession(data.session);if(!data.session)return;const[{data:u},{data:p}]=await Promise.all([supabase.from('users').select('role').eq('id',data.session.user.id).maybeSingle(),supabase.from('profiles').select('role').eq('id',data.session.user.id).maybeSingle()]);setAdmin(u?.role==='admin'||String(p?.role||'').toLowerCase()==='admin')})},[]);
+ return <div className="pjd-admin-shell">
+   <style>{ADMIN_UI_CSS}</style>
+   <AdminDashboard {...props}/>
+   {admin&&<div className="pjd-admin-tools" aria-label="Actions administrateur">
+     <button className="verify" onClick={()=>{window.dispatchEvent(new CustomEvent('pjd-admin-verify-shops'))}}>✓ Vérification des boutiques</button>
+     <button className="promo" onClick={()=>{window.dispatchEvent(new CustomEvent('pjd-admin-promo'))}}>🏷️ Codes promo</button>
+     <button className="chat" onClick={()=>setChat(true)}>💬 Messages vendeurs</button>
+   </div>}
+   {admin&&<>
+     {open&&<ReferralAdminSettings onClose={()=>setOpen(false)}/>} 
+     {chat&&<div style={{position:'fixed',inset:0,zIndex:10000,background:'#fff',overflow:'auto'}}><AdminSellerChat session={session} mode='admin' onBack={()=>setChat(false)}/></div>}
+   </>}
+ </div>
+}
