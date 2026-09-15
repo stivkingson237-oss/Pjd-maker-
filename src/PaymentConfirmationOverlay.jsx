@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Check } from 'lucide-react';
+import { supabase } from './lib/supabase';
 import './payment-confirmation.css';
 
 const money = (value) => `${Number(value || 0).toLocaleString('fr-FR')} FCFA`;
@@ -9,6 +10,7 @@ export default function PaymentConfirmationOverlay() {
   const [orderId, setOrderId] = useState('');
   const [paymentRef, setPaymentRef] = useState('');
   const [total, setTotal] = useState(0);
+  const [paidTotal, setPaidTotal] = useState(0);
   const lastTotalRef = useRef(0);
   const handledRef = useRef(false);
 
@@ -40,6 +42,43 @@ export default function PaymentConfirmationOverlay() {
       if (cartTotal > 0) lastTotalRef.current = cartTotal;
     } catch {}
 
+    const loadAuthoritativeTotals = async (id) => {
+      // The cart is cleared after a successful checkout, so never use it as the
+      // source of truth on the confirmation screen. Read the saved order/payment.
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        const [{ data: order }, { data: payment }] = await Promise.all([
+          supabase
+            .from('orders')
+            .select('id,total')
+            .eq('id', id)
+            .maybeSingle(),
+          supabase
+            .from('payments')
+            .select('amount,provider_transaction_id,provider_reference,payment_ref,status')
+            .eq('order_id', id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+        ]);
+
+        const orderTotal = Number(order?.total || 0);
+        const paymentAmount = Number(payment?.amount || 0);
+        if (orderTotal > 0 || paymentAmount > 0) {
+          setTotal(orderTotal || paymentAmount || lastTotalRef.current || 0);
+          setPaidTotal(paymentAmount || orderTotal || lastTotalRef.current || 0);
+          const ref = payment?.provider_transaction_id || payment?.provider_reference || payment?.payment_ref || '';
+          if (ref) setPaymentRef(String(ref));
+          return;
+        }
+
+        await new Promise((resolve) => window.setTimeout(resolve, 600));
+      }
+
+      const fallback = lastTotalRef.current || 0;
+      setTotal(fallback);
+      setPaidTotal(fallback);
+    };
+
     const checkConfirmation = () => {
       rememberCheckoutTotal();
       if (handledRef.current) return;
@@ -55,7 +94,9 @@ export default function PaymentConfirmationOverlay() {
       setOrderId(reference);
       setPaymentRef(payment);
       setTotal(lastTotalRef.current || 0);
+      setPaidTotal(lastTotalRef.current || 0);
       setVisible(true);
+      void loadAuthoritativeTotals(reference);
     };
 
     const observer = new MutationObserver(checkConfirmation);
@@ -97,7 +138,7 @@ export default function PaymentConfirmationOverlay() {
           </div>
         </div>
 
-        <p className="pjd-paid-total">Total payé : <strong>{money(total)}</strong></p>
+        <p className="pjd-paid-total">Total payé : <strong>{money(paidTotal)}</strong></p>
         {paymentRef && <p className="pjd-payment-ref">Référence paiement : {paymentRef}</p>}
 
         <button className="pjd-confirm-back" type="button" onClick={close}>Retour à la boutique</button>
