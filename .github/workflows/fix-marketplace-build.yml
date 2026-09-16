@@ -9,6 +9,7 @@ permissions:
 
 jobs:
   fix-duplicates:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -16,19 +17,17 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Restore MarketplaceHome and remove duplicated declarations
+      - name: Remove duplicate openAllShops declarations
         run: |
-          git checkout 255b6becd0bcad9b0d52126f28f32e1bf974a9dc -- src/MarketplaceHome.jsx
           python - <<'PY'
           from pathlib import Path
           path = Path('src/MarketplaceHome.jsx')
           text = path.read_text(encoding='utf-8')
           line = '  const openAllShops = () => { const url = `${window.location.origin}${window.location.pathname}?pjd_shops_window=1`; window.open(url, "pjd-market-boutiques", "noopener,noreferrer"); };'
-          text = text.replace(line + '\n', '')
-          marker = '  const openProduct = (product) => window.dispatchEvent(new CustomEvent("pjd-open-product", { detail: { product, productId: product.id, productType: product.product_type } }));\n'
-          text = text.replace(marker, marker + line + '\n', 1)
+          while text.count(line) > 1:
+              text = text.replace(line + '\n', '', 1)
           path.write_text(text, encoding='utf-8')
-          print('Restored MarketplaceHome from 255b6be and kept exactly one openAllShops declaration.')
+          print('openAllShops declarations:', text.count(line))
           PY
 
       - name: Commit fix
@@ -39,6 +38,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes to commit."
           else
-            git commit -m "fix: restore MarketplaceHome and remove duplicate openAllShops"
+            git commit -m "fix: remove duplicate openAllShops declaration"
             git push origin HEAD:main
           fi
