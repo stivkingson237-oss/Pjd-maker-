@@ -1,3 +1,5 @@
+import "./pjd-product-price-ticker.js";
+
 const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL || '').replace(/\/$/, '');
 const DEFAULT_PUBLIC_BUCKET = 'public-assets';
 
