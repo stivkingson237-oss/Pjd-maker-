@@ -3,13 +3,58 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+permissions:
+  contents: write
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Reorder PJD Market homepage
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("src/MarketplaceHome.jsx")
+          text = path.read_text(encoding="utf-8")
+
+          old_title = '<span className="mh-eyebrow">PJD MARKET</span><h2>Découvrez les produits</h2><p>Les photos des produits défilent automatiquement.</p>'
+          new_title = '<span className="mh-eyebrow">PJD MARKET</span><h2>🔥 PRODUITS PJD MARKET</h2><p>Les photos des produits défilent automatiquement.</p>'
+          if old_title in text:
+              text = text.replace(old_title, new_title, 1)
+
+          old = '''    <ProductPhotoCarousel products={products} onOpenProduct={openProduct}/>
+    <section className="mh-category-strip"><div className="mh-section-head"><div><span className="mh-eyebrow-dark"><Grid3X3 size={14}/> CATÉGORIES</span><h2>Explorez par catégorie</h2></div><button type="button" className="mh-see" onClick={()=>openCategory("all","Tous les produits")}>Voir tout <ChevronRight size={17}/></button></div><div className="mh-category-grid">{categoryDefs.slice(1).map((c)=>{const Icon=c.icon;return <button type="button" key={c.id} onClick={()=>openCategory(c.id,c.label)}><Icon size={22}/><span>{c.label}</span><ChevronRight size={16}/></button>})}</div></section>
+    {loading ? <div className="mh-empty">Chargement des produits…</div> : <><Section title="Tendances" eyebrow="EN CE MOMENT" icon={Flame} products={trending} favorites={favorites} onFavorite={favorite} onSeeAll={()=>openCategory("tendance","Tendances")}/><Section title="Produits physiques" eyebrow="BOUTIQUES" icon={Package} products={physical} favorites={favorites} onFavorite={favorite} onSeeAll={()=>openCategory("physical","Produits physiques")}/><Section title="Produits numériques" eyebrow="DIGITAL" icon={BookOpen} products={digital} favorites={favorites} onFavorite={favorite} onSeeAll={()=>openCategory("digital","Produits numériques")}/><ShopsSection shops={shops} onOpenShop={(id)=>window.dispatchEvent(new CustomEvent("pjd-open-shop", {detail:{shopId:id}}))}/></>}
+'''
+          new = '''    <section className="mh-category-strip"><div className="mh-section-head"><div><span className="mh-eyebrow-dark"><Grid3X3 size={14}/> CATÉGORIES</span><h2>Explorez par catégorie</h2></div><button type="button" className="mh-see" onClick={()=>openCategory("all","Tous les produits")}>Voir tout <ChevronRight size={17}/></button></div><div className="mh-category-grid">{categoryDefs.slice(1).map((c)=>{const Icon=c.icon;return <button type="button" key={c.id} onClick={()=>openCategory(c.id,c.label)}><Icon size={22}/><span>{c.label}</span><ChevronRight size={16}/></button>})}</div></section>
+    {loading ? <div className="mh-empty">Chargement des produits…</div> : <><Section title="Tendances" eyebrow="EN CE MOMENT" icon={Flame} products={trending} favorites={favorites} onFavorite={favorite} onSeeAll={()=>openCategory("tendance","Tendances")}/><Section title="Produits numériques" eyebrow="DIGITAL" icon={BookOpen} products={digital} favorites={favorites} onFavorite={favorite} onSeeAll={()=>openCategory("digital","Produits numériques")}/><ProductPhotoCarousel products={products} onOpenProduct={openProduct}/><Section title="Produits physiques" eyebrow="BOUTIQUES" icon={Package} products={physical} favorites={favorites} onFavorite={favorite} onSeeAll={()=>openCategory("physical","Produits physiques")}/><ShopsSection shops={shops} onOpenShop={(id)=>window.dispatchEvent(new CustomEvent("pjd-open-shop", {detail:{shopId:id}}))}/></>}
+'''
+          if old not in text:
+              raise SystemExit("Expected homepage block not found; refusing to change anything.")
+          if text.count(old) != 1:
+              raise SystemExit("Expected homepage block was not unique; refusing to change anything.")
+          path.write_text(text.replace(old, new, 1), encoding="utf-8")
+          print("Homepage order applied.")
+          PY
+      - name: Commit homepage change and restore workflow
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/MarketplaceHome.jsx
+          git commit -m "Reorder PJD Market homepage sections"
+          git push origin HEAD:main
+          git fetch origin main
+          git reset --hard origin/main
+          git checkout HEAD^ -- .github/workflows/build.yml
+          git add .github/workflows/build.yml
+          git commit -m "Restore build workflow"
+          git push origin HEAD:main
       - run: npm install
       - run: npm run build
