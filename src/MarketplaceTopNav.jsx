@@ -16,7 +16,7 @@ export default function MarketplaceTopNav({ session, shop, onOpenAffiliate, onOp
     let alive = true;
     async function loadRole() {
       if (!session?.user?.id) { if (alive) setIsAdmin(false); return; }
-      const { data } = await supabase.from("users").select("role").eq("id", session.user.id).maybeSingle();
+      const { data } = await supabase.from("users").select("role,shop_id").eq("id", session.user.id).maybeSingle();
       if (alive) setIsAdmin(data?.role === "admin" || session.user.user_metadata?.role === "admin");
     }
     loadRole();
@@ -49,8 +49,7 @@ export default function MarketplaceTopNav({ session, shop, onOpenAffiliate, onOp
   }, []);
 
   const openShop = () => {
-    if (isAdmin) return;
-    if (shop) { window.dispatchEvent(new CustomEvent("pjd-open-shop", { detail: { shopId: shop.id, shop } })); return; }
+    if (shop) { onOpenSeller?.(shop); return; }
     onOpenSeller?.(null);
   };
   const openAllShops = () => {
@@ -102,7 +101,10 @@ export default function MarketplaceTopNav({ session, shop, onOpenAffiliate, onOp
           <button className="pjd-action" onClick={() => onOpenAccount?.("favorites")}><Heart /><span>Favoris</span></button>
           <button className={`pjd-action pjd-cart-action ${cartPulse ? "pjd-pulse" : ""}`} onClick={onOpenCart}><ShoppingCart />{cartCount > 0 && <span className="pjd-cart-badge">{cartCount > 99 ? "99+" : cartCount}</span>}<span>Panier</span></button>
           {isAdmin ? (
-            <button className="pjd-action pjd-admin" onClick={() => window.dispatchEvent(new CustomEvent("pjd-open-admin"))}><ShieldCheck /><span>Administration</span></button>
+            <>
+              <button className="pjd-action pjd-shop" onClick={openShop}><Store /><span>{shop ? "Ma boutique" : "Créer ma boutique"}</span></button>
+              <button className="pjd-action pjd-admin" onClick={() => window.dispatchEvent(new CustomEvent("pjd-open-admin"))}><ShieldCheck /><span>Administration</span></button>
+            </>
           ) : (
             <button className="pjd-action pjd-shop" onClick={openShop}><Store /><span>{shop ? "Ma boutique" : "Créer ma boutique"}</span></button>
           )}
