@@ -8,10 +8,35 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <title>PJD Market</title>
     <meta name="description" content="PJD Market — marketplace, services, livraison, paiements et outils pour développer votre activité." />
-    <style>img[src^="data:image/png;base64"]{display:none!important}</style>
+    <style>img[src^="data:image/png;base64"]{display:none!important}.pjd-market-sell-cta{width:100%;display:flex;justify-content:center;margin:14px 0 24px}.pjd-market-sell-cta button{width:min(100%,520px);display:flex;align-items:center;justify-content:center;gap:9px;padding:14px 20px;border:0;border-radius:14px;background:#f97316;color:#fff;font:900 15px/1.2 system-ui,sans-serif;box-shadow:0 7px 18px rgba(249,115,22,.28);cursor:pointer}.pjd-market-sell-cta button:active{transform:scale(.98)}.pjd-boutiques-cta-slot{display:none!important}</style>
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      (() => {
+        const install = () => {
+          const shops = document.querySelector('.mh-shops-section');
+          if (!shops || shops.dataset.sellCtaInstalled === '1') return;
+          shops.dataset.sellCtaInstalled = '1';
+          const wrap = document.createElement('section');
+          wrap.className = 'pjd-market-sell-cta';
+          wrap.setAttribute('aria-label', 'Vendre sur PJD Market');
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.innerHTML = '<span>🏪</span><span>Commence à vendre</span>';
+          button.addEventListener('click', () => {
+            const sellerButton = document.querySelector('.pjd-topnav .pjd-shop, .pjd-topnav .pjd-create-shop');
+            if (sellerButton) sellerButton.click();
+            else window.dispatchEvent(new CustomEvent('pjd-open-seller'));
+          });
+          wrap.appendChild(button);
+          shops.insertAdjacentElement('afterend', wrap);
+        };
+        const observer = new MutationObserver(install);
+        observer.observe(document.body, { childList: true, subtree: true });
+        install();
+      })();
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
