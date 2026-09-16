@@ -212,6 +212,7 @@ export default function MarketplaceHome() {
   const openAllShops = () => { const url = `${window.location.origin}${window.location.pathname}?pjd_shops_window=1`; window.open(url, "pjd-market-boutiques", "noopener,noreferrer"); };
   const openAllShops = () => { const url = `${window.location.origin}${window.location.pathname}?pjd_shops_window=1`; window.open(url, "pjd-market-boutiques", "noopener,noreferrer"); };
   const openAllShops = () => { const url = `${window.location.origin}${window.location.pathname}?pjd_shops_window=1`; window.open(url, "pjd-market-boutiques", "noopener,noreferrer"); };
+  const openAllShops = () => { const url = `${window.location.origin}${window.location.pathname}?pjd_shops_window=1`; window.open(url, "pjd-market-boutiques", "noopener,noreferrer"); };
 
   if (page === "category") return <main className="marketplace-home mh-category-page">
     <section className="mh-category-toolbar"><button type="button" className="mh-back" onClick={openHome}><ArrowLeft size={18}/> Accueil</button><div><span className="mh-eyebrow-dark"><Grid3X3 size={14}/> CATALOGUE</span><h1>{categoryTitle}</h1><p>{searched.length} produit{searched.length > 1 ? "s" : ""} disponible{searched.length > 1 ? "s" : ""} sur PJD Market</p></div></section>
