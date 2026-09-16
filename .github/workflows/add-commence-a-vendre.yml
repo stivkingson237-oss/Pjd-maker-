@@ -1,0 +1,62 @@
+name: Add Commence à vendre button
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  add-button:
+    if: github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message, 'feat: add Commence à vendre button')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Update MarketplaceHome safely
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/MarketplaceHome.jsx')
+          text = p.read_text(encoding='utf-8')
+
+          open_line = '  const openAllShops = () => { const url = `${window.location.origin}${window.location.pathname}?pjd_shops_window=1`; window.open(url, "pjd-market-boutiques", "noopener,noreferrer"); };'
+          text = text.replace(open_line + '\n', '')
+          marker = '  const openProduct = (product) => window.dispatchEvent(new CustomEvent("pjd-open-product", { detail: { product, productId: product.id, productType: product.product_type } }));\n'
+          if marker not in text:
+              raise SystemExit('openProduct marker not found')
+          text = text.replace(marker, marker + open_line + '\n', 1)
+
+          old = '<button type="button" onClick={openAllShops}><Store size={16}/> Boutiques</button>'
+          new = old + '<button type="button" className="mh-sell-button" onClick={() => window.dispatchEvent(new CustomEvent("pjd-open-seller-space"))}><Store size={16}/> Commence à vendre</button>'
+          if old not in text:
+              raise SystemExit('hero actions marker not found')
+          text = text.replace(old, new, 1)
+
+          p.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Add orange/black button styling
+        run: |
+          cat >> src/pjd-navigation-fix.css <<'CSS'
+
+/* PJD Market — seller CTA */
+.mh-hero-actions .mh-sell-button{background:#111!important;color:#fff!important;border:2px solid #f97316!important;font-weight:900;box-shadow:0 8px 20px rgba(0,0,0,.16)}
+.mh-hero-actions .mh-sell-button:hover{background:#f97316!important;color:#fff!important;transform:translateY(-1px)}
+CSS
+
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/MarketplaceHome.jsx src/pjd-navigation-fix.css
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "feat: add Commence à vendre button"
+            git push origin HEAD:main
+          fi
