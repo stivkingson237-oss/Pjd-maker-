@@ -1,0 +1,34 @@
+name: Cleanup duplicate openAllShops
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove duplicates
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/MarketplaceHome.jsx')
+          s=p.read_text()
+          target='  const openAllShops = () => { const url = `${window.location.origin}${window.location.pathname}?pjd_shops_window=1`; window.open(url, "pjd-market-boutiques", "noopener,noreferrer"); };'
+          lines=s.splitlines(True)
+          out=[]; seen=0
+          for line in lines:
+              if line.rstrip('\n') == target:
+                  seen += 1
+                  if seen > 1: continue
+              out.append(line)
+          p.write_text(''.join(out))
+          print('kept', min(seen,1), 'of', seen)
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/MarketplaceHome.jsx
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'fix: remove duplicate openAllShops declarations'
+          git push
