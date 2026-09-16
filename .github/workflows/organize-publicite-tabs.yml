@@ -10,27 +10,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Apply requested PJD Market order
+      - name: Apply requested PJD Market updates
         shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
           p=Path('src/MarketplaceHome.jsx')
           s=p.read_text()
-          old='<Section title="Produits numériques" eyebrow="DIGITAL" icon={BookOpen} products={digital} favorites={favorites} onFavorite={favorite} onSeeAll={()=>openCategory("digital","Produits numériques")}/><ProductPhotoCarousel products={products} onOpenProduct={openProduct}/><Section title="Produits physiques" eyebrow="BOUTIQUES" icon={Package} products={physical} favorites={favorites} onFavorite={favorite} onSeeAll={()=>openCategory("physical","Produits physiques")}/>'
-          new='<Section title="Produits numériques" eyebrow="DIGITAL" icon={BookOpen} products={digital} favorites={favorites} onFavorite={favorite} onSeeAll={()=>openCategory("digital","Produits numériques")}/><Section title="Produits physiques" eyebrow="BOUTIQUES" icon={Package} products={physical} favorites={favorites} onFavorite={favorite} onSeeAll={()=>openCategory("physical","Produits physiques")}/><ProductPhotoCarousel products={products} onOpenProduct={openProduct}/>'
-          if old not in s:
-              print('Target already changed or not found; nothing to do')
-          else:
-              p.write_text(s.replace(old,new,1))
+          s=s.replace('function ShopsSection({ shops, onOpenShop }) {\n  if (!shops.length) return null;\n  return <section className="mh-section mh-shops-section"><div className="mh-section-head"><div><span className="mh-eyebrow-dark"><Store size={14}/> BOUTIQUES</span><h2>Meilleures boutiques</h2></div></div>', 'function ShopsSection({ shops, onOpenShop, onOpenAllShops }) {\n  if (!shops.length) return null;\n  return <section className="mh-section mh-shops-section"><div className="mh-section-head"><div><span className="mh-eyebrow-dark"><Store size={14}/> BOUTIQUES</span><h2>Meilleures boutiques</h2></div><button type="button" className="mh-see" onClick={onOpenAllShops}><Store size={17}/> Voir les boutiques <ChevronRight size={17}/></button></div>')
+          s=s.replace('const openProduct = (product) => window.dispatchEvent(new CustomEvent("pjd-open-product", { detail: { product, productId: product.id, productType: product.product_type } }));', 'const openProduct = (product) => window.dispatchEvent(new CustomEvent("pjd-open-product", { detail: { product, productId: product.id, productType: product.product_type } }));\n  const openAllShops = () => { const url = `${window.location.origin}${window.location.pathname}?pjd_shops_window=1`; window.open(url, "pjd-market-boutiques", "noopener,noreferrer"); };')
+          s=s.replace('<button type="button" onClick={()=>openCategory("tendance","Tendances")}><Flame size={16}/> Tendances</button></div>', '<button type="button" onClick={()=>openCategory("tendance","Tendances")}><Flame size={16}/> Tendances</button><button type="button" onClick={openAllShops}><Store size={16}/> Boutiques</button></div>')
+          s=s.replace('<ShopsSection shops={shops} onOpenShop={(id)=>window.dispatchEvent(new CustomEvent("pjd-open-shop", {detail:{shopId:id}}))}/>', '<ShopsSection shops={shops} onOpenShop={(id)=>window.dispatchEvent(new CustomEvent("pjd-open-shop", {detail:{shopId:id}}))} onOpenAllShops={openAllShops}/>')
+          p.write_text(s)
           PY
-      - name: Commit target only and restore this workflow
+      - name: Commit target changes
         shell: bash
         run: |
-          git checkout HEAD -- .github/workflows/organize-publicite-tabs.yml
-          if git diff --quiet -- src/MarketplaceHome.jsx; then echo 'No target changes'; exit 0; fi
+          if git diff --quiet -- src/MarketplaceHome.jsx; then echo 'No changes'; exit 0; fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add src/MarketplaceHome.jsx
-          git commit -m 'fix: swap PJD Market carousel and physical products'
+          git commit -m 'feat: restore boutiques navigation buttons'
           git push
