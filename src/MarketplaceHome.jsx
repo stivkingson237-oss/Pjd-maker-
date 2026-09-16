@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Heart, Download, Star, Package, BookOpen, Search, ShoppingCart,
   ChevronRight, Flame, Sparkles, Store, MapPin, ArrowLeft, Grid3X3,
@@ -90,6 +90,53 @@ function ProductCard({ product, isFavorite, onFavorite }) {
   </article>;
 }
 
+function ProductPhotoCarousel({ products, onOpenProduct }) {
+  const viewportRef = useRef(null);
+  const timerRef = useRef(null);
+  const [paused, setPaused] = useState(false);
+  const items = useMemo(() => products.filter((p) => getProductImageCandidates(p).length > 0).slice(0, 12), [products]);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport || items.length < 2 || paused) return undefined;
+    timerRef.current = window.setInterval(() => {
+      const first = viewport.querySelector(".mh-carousel-card");
+      const step = first ? first.getBoundingClientRect().width + 14 : viewport.clientWidth * 0.82;
+      const max = viewport.scrollWidth - viewport.clientWidth;
+      if (viewport.scrollLeft >= max - 4) viewport.scrollTo({ left: 0, behavior: "smooth" });
+      else viewport.scrollBy({ left: step, behavior: "smooth" });
+    }, 2800);
+    return () => window.clearInterval(timerRef.current);
+  }, [items.length, paused]);
+
+  if (!items.length) return null;
+
+  const scroll = (direction) => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    const card = viewport.querySelector(".mh-carousel-card");
+    const step = card ? card.getBoundingClientRect().width + 14 : viewport.clientWidth * 0.82;
+    viewport.scrollBy({ left: direction * step, behavior: "smooth" });
+  };
+
+  return <section className="mh-product-carousel" aria-label="Produits à découvrir" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onTouchStart={() => setPaused(true)}>
+    <div className="mh-carousel-head">
+      <div><span className="mh-eyebrow">PJD MARKET</span><h2>Découvrez les produits</h2><p>Les photos des produits défilent automatiquement.</p></div>
+      <div className="mh-carousel-controls"><button type="button" aria-label="Produits précédents" onClick={() => scroll(-1)}><ArrowLeft size={18}/></button><button type="button" aria-label="Produits suivants" onClick={() => scroll(1)}><ChevronRight size={18}/></button></div>
+    </div>
+    <div className="mh-carousel-viewport" ref={viewportRef}>
+      {items.map((product) => {
+        const image = getProductImageCandidates(product)[0];
+        const digital = isDigital(product);
+        return <button key={`${product.product_type}-${product.id}`} type="button" className="mh-carousel-card" onClick={() => onOpenProduct(product)}>
+          <div className="mh-carousel-card-image"><img src={image} alt={product.title || "Produit"} loading="eager" decoding="async" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }}/><span>{digital ? "NUMÉRIQUE" : "PHYSIQUE"}</span></div>
+          <div className="mh-carousel-card-info"><small>{product.category || (digital ? "Produit numérique" : "Produit physique")}</small><strong>{product.title || "Produit PJD Market"}</strong><b>{money(product.promo_price ?? product.price)}</b></div>
+        </button>;
+      })}
+    </div>
+  </section>;
+}
+
 function Section({ title, eyebrow, icon: Icon, products, favorites, onFavorite, onSeeAll, empty = "Aucun produit dans cette sélection." }) {
   return <section className="mh-section"><div className="mh-section-head"><div><span className="mh-eyebrow-dark">{Icon && <Icon size={14}/>} {eyebrow}</span><h2>{title}</h2></div><button className="mh-see" type="button" onClick={onSeeAll}>Voir tout <ChevronRight size={17}/></button></div>{products.length ? <div className="mh-grid">{products.slice(0, 8).map((p) => <ProductCard key={`${p.product_type}-${p.id}`} product={p} onFavorite={onFavorite} isFavorite={favorites.some((f) => f.id === p.id && f.product_type === p.product_type)}/>)}</div> : <div className="mh-empty">{empty}</div>}</section>;
 }
@@ -130,7 +177,7 @@ export default function MarketplaceHome() {
       supabase.from("marketplace_products").select("id,seller_id,shop_id,title,description,category,price,stock,images,status,created_at,updated_at").in("status", ACTIVE).order("created_at", {ascending:false}),
     ]);
     const digital = (d.data || []).map((x) => ({...x, product_type:"digital", source_type:"digital"}));
-    const physical = (p.data || []).map((x) => ({...x, product_type:"physical", cover_image:x.images?.[0] || null}));
+    const physical = (p.data || []).map((x) => ({...x, product_type:"physical", source_type:"physical", cover_image:x.images?.[0] || null}));
     setProducts([...digital, ...physical].sort((a,b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)));
     setLoading(false);
   }
@@ -156,6 +203,7 @@ export default function MarketplaceHome() {
   const openCategory = (filter, title) => { setActiveFilter(filter); setCategoryTitle(title); setPage("category"); setSearch(""); window.scrollTo({top:0, behavior:"smooth"}); };
   const openHome = () => { setPage("home"); setActiveFilter("all"); setSearch(""); window.scrollTo({top:0, behavior:"smooth"}); };
   const favorite = (p) => setFavorites((prev) => prev.some((x) => x.id===p.id && x.product_type===p.product_type) ? prev.filter((x)=>!(x.id===p.id && x.product_type===p.product_type)) : [...prev, p]);
+  const openProduct = (product) => window.dispatchEvent(new CustomEvent("pjd-open-product", { detail: { product, productId: product.id, productType: product.product_type } }));
 
   if (page === "category") return <main className="marketplace-home mh-category-page">
     <section className="mh-category-toolbar"><button type="button" className="mh-back" onClick={openHome}><ArrowLeft size={18}/> Accueil</button><div><span className="mh-eyebrow-dark"><Grid3X3 size={14}/> CATALOGUE</span><h1>{categoryTitle}</h1><p>{searched.length} produit{searched.length > 1 ? "s" : ""} disponible{searched.length > 1 ? "s" : ""} sur PJD Market</p></div></section>
@@ -168,6 +216,7 @@ export default function MarketplaceHome() {
 
   return <main className="marketplace-home">
     <section className="mh-hero"><div className="mh-hero-copy"><span className="mh-eyebrow"><Sparkles size={15}/> PJD MARKET</span><h1>Tout ce dont vous avez besoin,<br/><em>au même endroit.</em></h1><p>Découvrez les produits physiques et numériques proposés par les vendeurs de PJD Market.</p><div className="mh-search"><Search size={19}/><input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Rechercher un produit, une catégorie…"/><button type="button" onClick={()=>openCategory("all","Tous les produits")}>Rechercher</button></div><div className="mh-hero-actions"><button type="button" onClick={()=>openCategory("physical","Produits physiques")}><Package size={16}/> Produits physiques</button><button type="button" onClick={()=>openCategory("digital","Produits numériques")}><BookOpen size={16}/> Produits numériques</button><button type="button" onClick={()=>openCategory("tendance","Tendances")}><Flame size={16}/> Tendances</button></div></div></section>
+    <ProductPhotoCarousel products={products} onOpenProduct={openProduct}/>
     <section className="mh-category-strip"><div className="mh-section-head"><div><span className="mh-eyebrow-dark"><Grid3X3 size={14}/> CATÉGORIES</span><h2>Explorez par catégorie</h2></div><button type="button" className="mh-see" onClick={()=>openCategory("all","Tous les produits")}>Voir tout <ChevronRight size={17}/></button></div><div className="mh-category-grid">{categoryDefs.slice(1).map((c)=>{const Icon=c.icon;return <button type="button" key={c.id} onClick={()=>openCategory(c.id,c.label)}><Icon size={22}/><span>{c.label}</span><ChevronRight size={16}/></button>})}</div></section>
     {loading ? <div className="mh-empty">Chargement des produits…</div> : <><Section title="Tendances" eyebrow="EN CE MOMENT" icon={Flame} products={trending} favorites={favorites} onFavorite={favorite} onSeeAll={()=>openCategory("tendance","Tendances")}/><Section title="Produits physiques" eyebrow="BOUTIQUES" icon={Package} products={physical} favorites={favorites} onFavorite={favorite} onSeeAll={()=>openCategory("physical","Produits physiques")}/><Section title="Produits numériques" eyebrow="DIGITAL" icon={BookOpen} products={digital} favorites={favorites} onFavorite={favorite} onSeeAll={()=>openCategory("digital","Produits numériques")}/><ShopsSection shops={shops} onOpenShop={(id)=>window.dispatchEvent(new CustomEvent("pjd-open-shop", {detail:{shopId:id}}))}/></>}
   </main>;
