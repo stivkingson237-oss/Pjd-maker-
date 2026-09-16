@@ -52,10 +52,33 @@ async function downloadFree(product) {
 
 function ProductImage({ product }) {
   const candidates = getProductImageCandidates(product);
-  const [index, setIndex] = useState(0);
-  const src = candidates[index];
+  const [selected, setSelected] = useState(0);
+  const [failed, setFailed] = useState([]);
+  const safeCandidates = candidates.filter((src) => !failed.includes(src));
+  const currentIndex = Math.min(selected, Math.max(0, safeCandidates.length - 1));
+  const src = safeCandidates[currentIndex];
+
+  useEffect(() => {
+    setSelected(0);
+    setFailed([]);
+  }, [product?.id]);
+
+  const handleError = () => {
+    if (src) setFailed((prev) => prev.includes(src) ? prev : [...prev, src]);
+  };
+
   if (!src) return <div className="mh-image-placeholder">{isDigital(product) ? <BookOpen size={54}/> : <Package size={54}/>}<span>Photo indisponible</span></div>;
-  return <div className="mh-image-frame"><img className="mh-product-image" src={src} alt={product.title || "Photo du produit"} loading="lazy" decoding="async" onError={() => setIndex((i) => i + 1)} /></div>;
+
+  return <div className="mh-image-gallery">
+    <div className="mh-image-frame">
+      <img className="mh-product-image" src={src} alt={product.title || "Photo du produit"} loading="lazy" decoding="async" onError={handleError} />
+    </div>
+    {safeCandidates.length > 1 && <div className="mh-image-thumbs" aria-label="Photos du produit">
+      {safeCandidates.map((image, index) => <button key={`${image}-${index}`} type="button" className={`mh-image-thumb ${index === currentIndex ? "active" : ""}`} onClick={(e) => { e.stopPropagation(); setSelected(index); }} aria-label={`Voir la photo ${index + 1}`}>
+        <img src={image} alt="" loading="lazy" decoding="async" onError={() => setFailed((prev) => prev.includes(image) ? prev : [...prev, image])} />
+      </button>)}
+    </div>}
+  </div>;
 }
 
 function ProductCard({ product, isFavorite, onFavorite }) {
