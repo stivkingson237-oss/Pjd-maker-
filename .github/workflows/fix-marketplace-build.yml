@@ -16,32 +16,29 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Remove duplicated openAllShops declarations
+      - name: Restore MarketplaceHome and remove duplicated declarations
         run: |
+          git checkout 255b6becd0bcad9b0d52126f28f32e1bf974a9dc -- src/MarketplaceHome.jsx
           python - <<'PY'
           from pathlib import Path
           path = Path('src/MarketplaceHome.jsx')
           text = path.read_text(encoding='utf-8')
           line = '  const openAllShops = () => { const url = `${window.location.origin}${window.location.pathname}?pjd_shops_window=1`; window.open(url, "pjd-market-boutiques", "noopener,noreferrer"); };'
-          count = text.count(line)
-          if count > 1:
-              text = text.replace(line + '\n', '')
-              marker = '  const openProduct = (product) => window.dispatchEvent(new CustomEvent("pjd-open-product", { detail: { product, productId: product.id, productType: product.product_type } }));\n'
-              text = text.replace(marker, marker + line + '\n', 1)
-              path.write_text(text, encoding='utf-8')
-              print(f'Fixed {count} duplicate declarations; kept exactly one.')
-          else:
-              print(f'No duplicate declaration found (count={count}).')
+          text = text.replace(line + '\n', '')
+          marker = '  const openProduct = (product) => window.dispatchEvent(new CustomEvent("pjd-open-product", { detail: { product, productId: product.id, productType: product.product_type } }));\n'
+          text = text.replace(marker, marker + line + '\n', 1)
+          path.write_text(text, encoding='utf-8')
+          print('Restored MarketplaceHome from 255b6be and kept exactly one openAllShops declaration.')
           PY
 
       - name: Commit fix
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if git diff --quiet; then
+          git add src/MarketplaceHome.jsx
+          if git diff --cached --quiet; then
             echo "No changes to commit."
           else
-            git add src/MarketplaceHome.jsx
-            git commit -m "fix: remove duplicate openAllShops declarations"
+            git commit -m "fix: restore MarketplaceHome and remove duplicate openAllShops"
             git push origin HEAD:main
           fi
