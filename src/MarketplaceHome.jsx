@@ -119,7 +119,7 @@ function ProductPhotoCarousel({ products, onOpenProduct }) {
     viewport.scrollBy({ left: direction * step, behavior: "smooth" });
   };
 
-  return <section className="mh-product-carousel" aria-label="Produits à découvrir" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onTouchStart={() => setPaused(true)}>
+  return <section className="mh-product-carousel" aria-label="Produits à découvrir" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
     <div className="mh-carousel-head">
       <div><span className="mh-eyebrow">PJD MARKET</span><h2>Découvrez les produits</h2><p>Les photos des produits défilent automatiquement.</p></div>
       <div className="mh-carousel-controls"><button type="button" aria-label="Produits précédents" onClick={() => scroll(-1)}><ArrowLeft size={18}/></button><button type="button" aria-label="Produits suivants" onClick={() => scroll(1)}><ChevronRight size={18}/></button></div>
@@ -167,7 +167,7 @@ export default function MarketplaceHome() {
   const [categoryTitle, setCategoryTitle] = useState("Tous les produits");
   const [favorites, setFavorites] = useState(() => { try { return JSON.parse(localStorage.getItem("pjd-favorites") || "[]"); } catch { return []; } });
 
-  useEffect(() => { loadProducts(); loadShops(); const channel = supabase.channel("marketplace-products-home-v15").on("postgres_changes", {event:"*",schema:"public",table:"digital_products"}, loadProducts).on("postgres_changes", {event:"*",schema:"public",table:"marketplace_products"}, loadProducts).subscribe(); return () => supabase.removeChannel(channel); }, []);
+  useEffect(() => { loadProducts(); loadShops(); const channel = supabase.channel("marketplace-products-home-v16").on("postgres_changes", {event:"*",schema:"public",table:"digital_products"}, loadProducts).on("postgres_changes", {event:"*",schema:"public",table:"marketplace_products"}, loadProducts).subscribe(); return () => supabase.removeChannel(channel); }, []);
   useEffect(() => { localStorage.setItem("pjd-favorites", JSON.stringify(favorites)); }, [favorites]);
 
   async function loadProducts() {
@@ -176,7 +176,12 @@ export default function MarketplaceHome() {
       supabase.from("digital_products").select("id,seller_id,shop_id,title,description,category,price,promo_price,cover_image,image_url,file_type,file_url,is_free,downloads,sales,stock,status,created_at,source_type").in("status", ACTIVE).order("created_at", {ascending:false}),
       supabase.from("marketplace_products").select("id,seller_id,shop_id,title,description,category,price,stock,images,status,created_at,updated_at").in("status", ACTIVE).order("created_at", {ascending:false}),
     ]);
-    const digital = (d.data || []).map((x) => ({...x, product_type:"digital", source_type:"digital"}));
+
+    const digital = (d.data || []).map((x) => ({
+      ...x,
+      product_type: x.source_type === "physical" ? "physical" : "digital",
+      source_type: x.source_type || "digital",
+    }));
     const physical = (p.data || []).map((x) => ({...x, product_type:"physical", source_type:"physical", cover_image:x.images?.[0] || null}));
     setProducts([...digital, ...physical].sort((a,b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)));
     setLoading(false);
