@@ -15,13 +15,17 @@ jobs:
           from pathlib import Path
           p = Path('src/MarketplaceHome.jsx')
           s = p.read_text()
-          line = '  const openAllShops = () => { const url = `${window.location.origin}${window.location.pathname}?pjd_shops_window=1`; window.open(url, "pjd-market-boutiques", "noopener,noreferrer"); };\n'
-          while s.count(line) > 1:
-              first = s.find(line)
-              second = s.find(line, first + len(line))
-              s = s[:second] + s[second + len(line):]
-          p.write_text(s)
-          print('openAllShops declarations:', s.count(line))
+          lines = s.splitlines(True)
+          out = []
+          seen = 0
+          for line in lines:
+              if 'const openAllShops = () =>' in line:
+                  seen += 1
+                  if seen > 1:
+                      continue
+              out.append(line)
+          p.write_text(''.join(out))
+          print('openAllShops declarations:', seen)
           PY
       - name: Commit fix
         run: |
