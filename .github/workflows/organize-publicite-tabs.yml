@@ -10,21 +10,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Rename and prioritize visibility tabs
+      - name: Apply requested PJD Market order
         shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          p=Path('src/SellerGrowthHubV2.jsx')
+          p=Path('src/MarketplaceHome.jsx')
           s=p.read_text()
-          old="const tabs=[['marketing','📣 IA Marketing'],['publication','✨ IA Publication'],['analytics','📊 IA Commerciale'],['promos','🏷️ Promotions'],['ads','🚀 PJD Ads'],['referral','👥 Parrainage'],['opportunities','💡 Opportunités'],['stock','📦 Stock'],['seo','🔎 SEO']];"
-          new="const tabs=[['publication','📤 Publier'],['promos','🏷️ Promotion'],['ads','📣 Publicité'],['marketing','📣 IA Marketing'],['analytics','📊 IA Commerciale'],['referral','👥 Parrainage'],['opportunities','💡 Opportunités'],['stock','📦 Stock'],['seo','🔎 SEO']];"
-          if old in s: s=s.replace(old,new,1)
-          p.write_text(s)
+          old='<Section title="Produits numériques" eyebrow="DIGITAL" icon={BookOpen} products={digital} favorites={favorites} onFavorite={favorite} onSeeAll={()=>openCategory("digital","Produits numériques")}/><ProductPhotoCarousel products={products} onOpenProduct={openProduct}/><Section title="Produits physiques" eyebrow="BOUTIQUES" icon={Package} products={physical} favorites={favorites} onFavorite={favorite} onSeeAll={()=>openCategory("physical","Produits physiques")}/>'
+          new='<Section title="Produits numériques" eyebrow="DIGITAL" icon={BookOpen} products={digital} favorites={favorites} onFavorite={favorite} onSeeAll={()=>openCategory("digital","Produits numériques")}/><Section title="Produits physiques" eyebrow="BOUTIQUES" icon={Package} products={physical} favorites={favorites} onFavorite={favorite} onSeeAll={()=>openCategory("physical","Produits physiques")}/><ProductPhotoCarousel products={products} onOpenProduct={openProduct}/>'
+          if old not in s:
+              print('Target already changed or not found; nothing to do')
+          else:
+              p.write_text(s.replace(old,new,1))
           PY
-          if git diff --quiet; then echo 'No changes'; exit 0; fi
+      - name: Commit target only and restore this workflow
+        shell: bash
+        run: |
+          git checkout HEAD -- .github/workflows/organize-publicite-tabs.yml
+          if git diff --quiet -- src/MarketplaceHome.jsx; then echo 'No target changes'; exit 0; fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add src/SellerGrowthHubV2.jsx
-          git commit -m 'feat: organize seller visibility tabs as Publier Promotion Publicité'
+          git add src/MarketplaceHome.jsx
+          git commit -m 'fix: swap PJD Market carousel and physical products'
           git push
