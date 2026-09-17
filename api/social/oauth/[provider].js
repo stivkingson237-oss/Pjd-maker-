@@ -25,7 +25,10 @@ module.exports = async (req,res)=>{
   let url='';
   if(provider==='facebook'||provider==='instagram'||provider==='whatsapp'){
     if(!env('META_CLIENT_ID'))return res.status(503).json({error:'META_CLIENT_ID non configuré'});
-    const scopes=provider==='whatsapp'?'business_management,whatsapp_business_management,whatsapp_business_messaging':'pages_show_list,pages_read_engagement,instagram_basic,instagram_content_publish';
+    let scopes;
+    if(provider==='facebook') scopes='pages_show_list,pages_read_engagement,pages_manage_posts';
+    else if(provider==='instagram') scopes='pages_show_list,pages_read_engagement,instagram_basic,instagram_content_publish';
+    else scopes='business_management,whatsapp_business_management,whatsapp_business_messaging';
     url=`https://www.facebook.com/v23.0/dialog/oauth?client_id=${encodeURIComponent(env('META_CLIENT_ID'))}&redirect_uri=${encodeURIComponent(callback)}&state=${encodeURIComponent(state)}&scope=${encodeURIComponent(scopes)}`;
   }else if(provider==='tiktok'){
     if(!env('TIKTOK_CLIENT_KEY'))return res.status(503).json({error:'TIKTOK_CLIENT_KEY non configuré'});
