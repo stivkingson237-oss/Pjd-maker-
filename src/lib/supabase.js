@@ -13,12 +13,15 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   },
 });
 
+// Shared retry helper. It must live at module scope because both the global
+// fetch patch and the Storage upload patch use it.
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 // Storage uploads on mobile networks can fail with the browser's generic
 // "Failed to fetch" even when Supabase is healthy. Retry transient network
 // failures before returning the error to the uploader.
 if (typeof window !== 'undefined' && !window.__pjdStorageFetchPatched) {
   const nativeFetch = window.fetch.bind(window);
-  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
   window.fetch = async (input, init) => {
     const raw = typeof input === 'string' ? input : input instanceof Request ? input.url : '';
