@@ -11,7 +11,14 @@ export default function SocialPromotionConnections({session}){
  const row=p=>rows.find(x=>x.provider===p);
  const connect=async p=>{setBusy(p);setNotice('');
    const urls={facebook:'/api/social/oauth/facebook',instagram:'/api/social/oauth/instagram',tiktok:'/api/social/oauth/tiktok',youtube:'/api/social/oauth/youtube',whatsapp:'/api/social/oauth/whatsapp',telegram:'/api/social/oauth/telegram'};
-   try{const r=await fetch(urls[p],{credentials:'include'});if(!r.ok)throw new Error('OAuth non configuré pour ce réseau');const j=await r.json();if(j.url)window.location.href=j.url;else throw new Error(j.error||'Lien de connexion indisponible')}catch(e){setNotice(`${p}: ${e.message}. Les identifiants OAuth officiels doivent être configurés côté serveur.`)}finally{setBusy('')}
+   try{
+     const{data:{session:currentSession}}=await supabase.auth.getSession();
+     if(!currentSession?.access_token)throw new Error('Session PJD Market expirée. Reconnectez-vous.');
+     const r=await fetch(urls[p],{credentials:'include',headers:{Authorization:`Bearer ${currentSession.access_token}`,'Content-Type':'application/json'}});
+     const j=await r.json().catch(()=>({}));
+     if(!r.ok)throw new Error(j.error||'Connexion indisponible');
+     if(j.url)window.location.href=j.url;else throw new Error(j.error||'Lien de connexion indisponible');
+   }catch(e){setNotice(`${p}: ${e.message}`)}finally{setBusy('')}
  };
  return <section style={{marginTop:18,padding:16,border:'1px solid #e5e7eb',borderRadius:16,background:'#fff'}}><h2 style={{marginTop:0}}>🌐 Réseaux sociaux pour les promotions</h2><p style={{color:'#667085'}}>Connectez vos comptes une seule fois. Dès qu'une promotion est créée, PJD Market prépare automatiquement une publication pour chaque réseau réellement connecté.</p>{notice&&<div style={{padding:11,background:'#fff7ed',border:'1px solid #fed7aa',borderRadius:10,marginBottom:10}}>{notice}</div>}<div style={{display:'grid',gap:9}}>{providers.map(([id,icon,name,desc])=>{const r=row(id);return <div key={id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,padding:12,border:'1px solid #eee',borderRadius:12}}><div><b>{icon} {name}</b><small style={{display:'block',color:'#667085'}}>{r?.account_name||desc}</small></div><button disabled={busy===id} onClick={()=>connect(id)} style={{padding:'9px 12px',border:0,borderRadius:9,background:r?.status==='connected'?'#16a34a':'#111',color:'#fff',fontWeight:800}}>{busy===id?'Connexion…':r?.status==='connected'?'✓ Connecté':'Connecter'}</button></div>})}</div><small style={{display:'block',marginTop:12,color:'#667085'}}>La publication automatique dépend de l'autorisation officielle de chaque plateforme et de ses quotas/conditions.</small></section>
 }
