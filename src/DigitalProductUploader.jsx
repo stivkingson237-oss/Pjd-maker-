@@ -5,6 +5,8 @@ import*as pdfjsLib from'pdfjs-dist';
 import pdfWorker from'pdfjs-dist/build/pdf.worker.mjs?url';
 import{Upload as TusUpload}from'tus-js-client';
 pdfjsLib.GlobalWorkerOptions.workerSrc=pdfWorker;
+const SUPABASE_URL='https://lrlukgkaarzuqotefhlc.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY='sb_publishable_zkGGMilXntgSTG8ajxi1rQ_bdvm-Ogs';
 const digitalCats=['Applications & APK','E-books & PDF','Formations','Design & Création','Templates','Documents','Musique & Audio','Vidéos','Photos & Images','Autres'];
 const physicalCats=['Mode','Électronique','Maison','Beauté','Alimentation','Accessoires','Sports & Loisirs','Livres physiques','Artisanat','Autres'];
 const iconFor=t=>{if(t?.startsWith('video/'))return Video;if(t?.startsWith('audio/'))return Music;if(t?.includes('zip')||t?.includes('rar'))return Archive;if(t?.includes('pdf')||t?.includes('epub'))return BookOpen;return FileText};
@@ -12,7 +14,17 @@ const safeName=n=>(n||'fichier').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
 const isPdf=f=>Boolean(f)&&(/application\/pdf/i.test(f.type)||/\.pdf$/i.test(f.name||''));
 const formatSize=v=>v>=1024*1024?`${(v/1024/1024).toFixed(2)} Mo`:`${Math.max(1,Math.round(v/1024))} Ko`;
 async function inspectPdf(file){const data=await file.arrayBuffer();const pdf=await pdfjsLib.getDocument({data}).promise;const page=await pdf.getPage(1);const viewport=page.getViewport({scale:1.35});const canvas=document.createElement('canvas');canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);const ctx=canvas.getContext('2d',{alpha:false});await page.render({canvasContext:ctx,viewport}).promise;const blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('Impossible de créer l’aperçu.')),'image/jpeg',.86));return{pages:pdf.numPages,preview:blob}};
-async function uploadProductFile(path,file,onProgress){if(file.size<=6*1024*1024){const up=await supabase.storage.from('product-files').upload(path,file,{upsert:false,contentType:file.type||'application/octet-stream',cacheControl:'3600'});if(up.error)throw up.error;return up.data}const{data:{session}}=await supabase.auth.getSession();if(!session?.access_token)throw new Error('Session expirée. Reconnectez-vous puis réessayez.');const projectRef='lrlukgkaarzuqotefhlc';return await new Promise((resolve,reject)=>{const upload=new TusUpload(file,{endpoint:`https://${projectRef}.storage.supabase.co/storage/v1/upload/resumable`,retryDelays:[0,3000,5000,10000,20000],headers:{authorization:`Bearer ${session.access_token}`,'x-upsert':'false'},uploadDataDuringCreation:true,removeFingerprintOnSuccess:true,chunkSize:6*1024*1024,metadata:{bucketName:'product-files',objectName:path,contentType:file.type||'application/octet-stream',cacheControl:'3600'},onError:error=>reject(error),onProgress:(bytesUploaded,bytesTotal)=>onProgress?.(Math.round(bytesUploaded/bytesTotal*100)),onSuccess:()=>resolve({path})});upload.findPreviousUploads().then(previous=>{if(previous.length)upload.resumeFromPreviousUpload(previous[0]);upload.start()}).catch(reject)})}
+async function uploadProductFile(path,file,onProgress){
+ if(file.size<=6*1024*1024){const up=await supabase.storage.from('product-files').upload(path,file,{upsert:false,contentType:file.type||'application/octet-stream',cacheControl:'3600'});if(up.error)throw new Error(up.error.message);return up.data}
+ const{data:{session}}=await supabase.auth.getSession();
+ if(!session?.access_token)throw new Error('Session expirée. Reconnectez-vous puis réessayez.');
+ return await new Promise((resolve,reject)=>{
+  let settled=false;
+  const fail=error=>{if(settled)return;settled=true;const status=error?.originalResponse?.getStatus?.()||error?.status||'';const body=error?.originalResponse?.getBody?.()||'';reject(new Error(`Échec de l’import${status?` (${status})`:''}${body?`: ${body}`:'. Vérifiez votre connexion et réessayez.'}`))};
+  const upload=new TusUpload(file,{endpoint:`${SUPABASE_URL.replace('.supabase.co','.storage.supabase.co')}/storage/v1/upload/resumable`,retryDelays:[0,3000,5000,10000,20000],headers:{authorization:`Bearer ${session.access_token}`,apikey:SUPABASE_PUBLISHABLE_KEY,'x-upsert':'false'},uploadDataDuringCreation:true,removeFingerprintOnSuccess:true,chunkSize:6*1024*1024,metadata:{bucketName:'product-files',objectName:path,contentType:file.type||'application/octet-stream',cacheControl:'3600'},onError:fail,onProgress:(bytesUploaded,bytesTotal)=>onProgress?.(Math.round(bytesUploaded/bytesTotal*100)),onSuccess:()=>{if(!settled){settled=true;resolve({path})}}});
+  upload.findPreviousUploads().then(previous=>{if(previous.length)upload.resumeFromPreviousUpload(previous[0]);upload.start()}).catch(fail);
+ })
+}
 export default function DigitalProductUploader({session,shop,onClose,onSaved}){
  const[type,setType]=useState('digital'),[title,setTitle]=useState(''),[description,setDescription]=useState(''),[category,setCategory]=useState('E-books & PDF'),[price,setPrice]=useState(''),[promoEnabled,setPromoEnabled]=useState(false),[promoPrice,setPromoPrice]=useState(''),[discount,setDiscount]=useState(''),[free,setFree]=useState(false),[stock,setStock]=useState('0'),[sku,setSku]=useState(''),[file,setFile]=useState(null),[cover,setCover]=useState(null),[coverPreview,setCoverPreview]=useState(''),[pdfInfo,setPdfInfo]=useState(null),[busy,setBusy]=useState(false),[msg,setMsg]=useState('');
  const Icon=iconFor(file?.type);
