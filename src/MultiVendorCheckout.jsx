@@ -1,5 +1,5 @@
 import React,{useEffect,useMemo,useState}from'react';
-import{X,CheckCircle,Loader2,ShieldCheck,Minus,Plus,Trash2,MapPin,Tag,Check,LogIn,ExternalLink,RefreshCw}from'lucide-react';
+import{X,CheckCircle,Loader2,ShieldCheck,Minus,Plus,Trash2,MapPin,Tag,Check,LogIn,ExternalLink}from'lucide-react';
 import{createMultivendorOrder,validatePromoCode}from'./lib/multivendorCheckout';
 import{supabase}from'./lib/supabase';import'./multivendor-checkout.css';
 const money=v=>`${Number(v||0).toLocaleString('fr-FR')} FCFA`;
