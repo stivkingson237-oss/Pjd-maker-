@@ -76,9 +76,9 @@ export default function SellerDashboard({ session, shop, activeTab = 'dashboard'
     if (!token) throw new Error('Session expirée. Reconnectez-vous avant de publier.');
     await new Promise((resolve, reject) => {
       const upload = new TusUpload(file, {
-        endpoint: 'https://lrlukgkaarzuqotefhlc.supabase.co/storage/v1/upload/resumable',
+        endpoint: 'https://lrlukgkaarzuqotefhlc.storage.supabase.co/storage/v1/upload/resumable',
         retryDelays: [0, 1000, 3000, 5000, 10000],
-        headers: { authorization: `Bearer ${token}`, 'x-upsert': 'false' },
+        headers: { authorization: `Bearer ${token}`, apikey: 'sb_publishable_zkGGMilXntgSTG8ajxi1rQ_bdvm-Ogs', 'x-upsert': 'false' },
         metadata: { bucketName:'product-files', objectName:path, contentType:file.type || 'application/octet-stream', cacheControl:'3600' },
         chunkSize: 6 * 1024 * 1024,
         onError: error => reject(error),
