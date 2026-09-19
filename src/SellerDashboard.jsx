@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { BarChart3, Boxes, Image as ImageIcon, PackagePlus, Save, ShoppingBag, TrendingUp, Upload, Wallet, Percent, Loader2, CheckCircle2, X, Gift } from 'lucide-react';
+import { Upload as TusUpload } from 'tus-js-client';
 import { supabase } from './lib/supabase';
 import './seller.css';
 
@@ -61,6 +62,32 @@ export default function SellerDashboard({ session, shop, activeTab = 'dashboard'
   }, [orders]);
 
   const update = (key, value) => setForm(f => ({ ...f, [key]:value }));
+  async function uploadProductFile(path, file) {
+    if (file.size <= 6 * 1024 * 1024) {
+      const up = await supabase.storage.from('product-files').upload(path, file, {
+        upsert:false, contentType:file.type || 'application/octet-stream', cacheControl:'3600'
+      });
+      if (up.error) throw new Error(up.error.message || 'Échec de l’envoi du fichier.');
+      return;
+    }
+    const { data: authData, error: authError } = await supabase.auth.getSession();
+    if (authError) throw new Error(`Session Supabase : ${authError.message}`);
+    const token = authData?.session?.access_token;
+    if (!token) throw new Error('Session expirée. Reconnectez-vous avant de publier.');
+    await new Promise((resolve, reject) => {
+      const upload = new TusUpload(file, {
+        endpoint: 'https://lrlukgkaarzuqotefhlc.supabase.co/storage/v1/upload/resumable',
+        retryDelays: [0, 1000, 3000, 5000, 10000],
+        headers: { authorization: `Bearer ${token}`, 'x-upsert': 'false' },
+        metadata: { bucketName:'product-files', objectName:path, contentType:file.type || 'application/octet-stream', cacheControl:'3600' },
+        chunkSize: 6 * 1024 * 1024,
+        onError: error => reject(error),
+        onSuccess: () => resolve()
+      });
+      upload.start();
+    });
+  }
+
   async function publish() {
     if (!session?.user?.id || !shop?.id) return setMsg('Votre boutique doit être active avant de publier.');
     if (!form.title.trim()) return setMsg('Indiquez le nom du produit.');
@@ -68,20 +95,41 @@ export default function SellerDashboard({ session, shop, activeTab = 'dashboard'
     if (!form.free && (!form.price || Number(form.price) < 0)) return setMsg('Indiquez le prix du produit ou choisissez Gratuit.');
     setSaving(true); setMsg('Publication en cours…');
     const uid = session.user.id, safe = form.file.name.replace(/[^a-zA-Z0-9._-]/g, '_'), path = `${uid}/${shop.id}/${Date.now()}-${safe}`;
-    const up = await supabase.storage.from('product-files').upload(path, form.file, { upsert:false, contentType:form.file.type || 'application/octet-stream' });
-    if (up.error) { setMsg(`Fichier : ${up.error.message}`); setSaving(false); return; }
+    let uploadedFile = false;
+    try { await uploadProductFile(path, form.file); uploadedFile = true; }
+    catch (uploadError) {
+      const message = uploadError?.message || String(uploadError || 'Erreur réseau inconnue');
+      setMsg(`Fichier : ${message.includes('Failed to fetch') ? 'connexion réseau interrompue pendant l’envoi. Réessayez avec une connexion stable.' : message}`);
+      setSaving(false); return;
+    }
     let image = null;
     if (form.cover) {
       const ext = (form.cover.name.split('.').pop() || 'jpg').replace(/[^a-z0-9]/gi, '') || 'jpg';
       const coverPath = `${uid}/${shop.id}/cover-${Date.now()}.${ext}`;
       const cu = await supabase.storage.from('public-assets').upload(coverPath, form.cover, { upsert:false, contentType:form.cover.type || 'image/jpeg' });
-      if (cu.error) { await supabase.storage.from('product-files').remove([path]); setMsg(`Photo : ${cu.error.message}`); setSaving(false); return; }
+      if (cu.error) { if (uploadedFile) await supabase.storage.from('product-files').remove([path]).catch(() => {}); setMsg(`Photo : ${cu.error.message}`); setSaving(false); return; }
       image = supabase.storage.from('public-assets').getPublicUrl(coverPath).data?.publicUrl || null;
     }
-    const result = await supabase.from('digital_products').insert({ seller_id:uid, shop_id:shop.id, title:form.title.trim(), description:form.description.trim(), category:form.category, price:form.free ? 0 : Number(form.price || 0), promo_price:null, stock:Number(form.stock) || 0, sku:form.sku.trim() || null, file_url:path, file_type:form.file.type || null, file_size:form.file.size || null, image_url:image, cover_image:image, is_free:form.free, status:'actif', source_type:'digital' }).select().single();
-    if (result.error) { await supabase.storage.from('product-files').remove([path]); setMsg(`Produit : ${result.error.message}`); }
-    else { setMsg('Produit publié avec succès.'); setForm({ title:'', description:'', category:'E-books & PDF', price:'', free:false, stock:'0', sku:'', file:null, cover:null }); await load(); }
-    setSaving(false);
+    try {
+      const result = await supabase.from('digital_products').insert({
+        seller_id:uid, shop_id:shop.id, title:form.title.trim(), description:form.description.trim(),
+        category:form.category, price:form.free ? 0 : Number(form.price || 0), promo_price:null,
+        stock:Number(form.stock) || 0, sku:form.sku.trim() || null, file_url:path,
+        file_type:form.file.type || null, file_size:form.file.size || null, image_url:image,
+        cover_image:image, is_free:form.free, status:'actif', source_type:'digital'
+      }).select().single();
+      if (result.error) {
+        if (uploadedFile) await supabase.storage.from('product-files').remove([path]).catch(() => {});
+        setMsg(`Produit : ${result.error.message}${result.error.hint ? ` — ${result.error.hint}` : ''}`);
+      } else {
+        setMsg('Produit publié avec succès.');
+        setForm({ title:'', description:'', category:'E-books & PDF', price:'', free:false, stock:'0', sku:'', file:null, cover:null });
+        await load();
+      }
+    } catch (error) {
+      if (uploadedFile) await supabase.storage.from('product-files').remove([path]).catch(() => {});
+      setMsg(`Publication : ${error?.message || 'erreur réseau inconnue'}`);
+    } finally { setSaving(false); }
   }
   async function savePrice(p) {
     const key = `${p.product_type}:${p.id}`, edit = edits[key] || { price:String(p.price ?? 0), promo:p.promo_price == null ? '' : String(p.promo_price) }, price = Number(edit.price), promo = edit.promo === '' ? null : Number(edit.promo);
