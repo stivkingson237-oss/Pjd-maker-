@@ -63,23 +63,28 @@ export default function SellerDashboard({ session, shop, activeTab = 'dashboard'
 
   const update = (key, value) => setForm(f => ({ ...f, [key]:value }));
   async function uploadProductFile(path, file) {
-    if (file.size <= 6 * 1024 * 1024) {
-      const up = await supabase.storage.from('product-files').upload(path, file, {
-        upsert:false, contentType:file.type || 'application/octet-stream', cacheControl:'3600'
-      });
-      if (up.error) throw new Error(up.error.message || 'Échec de l’envoi du fichier.');
-      return;
-    }
     const { data: authData, error: authError } = await supabase.auth.getSession();
     if (authError) throw new Error(`Session Supabase : ${authError.message}`);
     const token = authData?.session?.access_token;
     if (!token) throw new Error('Session expirée. Reconnectez-vous avant de publier.');
+
     await new Promise((resolve, reject) => {
       const upload = new TusUpload(file, {
         endpoint: 'https://lrlukgkaarzuqotefhlc.storage.supabase.co/storage/v1/upload/resumable',
-        retryDelays: [0, 1000, 3000, 5000, 10000],
-        headers: { authorization: `Bearer ${token}`, apikey: 'sb_publishable_zkGGMilXntgSTG8ajxi1rQ_bdvm-Ogs', 'x-upsert': 'false' },
-        metadata: { bucketName:'product-files', objectName:path, contentType:file.type || 'application/octet-stream', cacheControl:'3600' },
+        retryDelays: [0, 3000, 5000, 10000, 20000],
+        headers: {
+          authorization: `Bearer ${token}`,
+          apikey: 'sb_publishable_zkGGMilXntgSTG8ajxi1rQ_bdvm-Ogs',
+          'x-upsert': 'false'
+        },
+        uploadDataDuringCreation: true,
+        removeFingerprintOnSuccess: true,
+        metadata: {
+          bucketName: 'product-files',
+          objectName: path,
+          contentType: file.type || 'application/octet-stream',
+          cacheControl: '3600'
+        },
         chunkSize: 6 * 1024 * 1024,
         onError: error => reject(error),
         onSuccess: () => resolve()
