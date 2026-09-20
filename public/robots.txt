@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /dashboard
+Disallow: /seller
+Disallow: /compte
+Disallow: /profil
+Disallow: /parametres
+Sitemap: https://pjd-maker.vercel.app/api/sitemap.xml
