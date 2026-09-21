@@ -30,3 +30,20 @@ drop index if exists public.idx_order_items_seller;
 drop index if exists public.reviews_one_per_buyer_order_product;
 drop index if exists public.idx_shop_followers_shop_id;
 drop index if exists public.shop_followers_shop_user_uidx;
+
+-- Restrict seller/withdrawal writes to authenticated sessions.
+drop policy if exists marketplace_products_owner_write on public.marketplace_products;
+create policy marketplace_products_owner_write on public.marketplace_products
+  for all to authenticated
+  using (auth.uid() = seller_id)
+  with check (auth.uid() = seller_id);
+
+drop policy if exists withdrawals_insert_own on public.withdrawals;
+create policy withdrawals_insert_own on public.withdrawals
+  for insert to authenticated
+  with check (auth.uid() = user_id);
+
+drop policy if exists withdrawals_select_own on public.withdrawals;
+create policy withdrawals_select_own on public.withdrawals
+  for select to authenticated
+  using (auth.uid() = user_id);
