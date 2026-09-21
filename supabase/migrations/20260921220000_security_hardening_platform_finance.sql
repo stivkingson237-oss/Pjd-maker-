@@ -47,3 +47,9 @@ drop policy if exists withdrawals_select_own on public.withdrawals;
 create policy withdrawals_select_own on public.withdrawals
   for select to authenticated
   using (auth.uid() = user_id);
+
+-- Restrict wallet transaction history to authenticated owners.
+drop policy if exists wallet_transactions_select_own on public.wallet_transactions;
+create policy wallet_transactions_select_own on public.wallet_transactions
+  for select to authenticated
+  using (auth.uid() = user_id);
