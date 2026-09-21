@@ -57,3 +57,36 @@ create policy wallet_transactions_select_own on public.wallet_transactions
 -- Keep delivery state changes behind the authenticated SECURITY DEFINER RPC.
 revoke execute on function public.set_delivery_status(uuid,text) from public, anon;
 grant execute on function public.set_delivery_status(uuid,text) to authenticated;
+-- Admin-only referral settings update.
+create or replace function public.update_referral_settings(
+  p_purchase_percent numeric,
+  p_purchase_fixed numeric,
+  p_seller_percent numeric,
+  p_seller_fixed numeric,
+  p_shop_activation_reward_percent numeric,
+  p_shop_activation_reward_fixed numeric,
+  p_subscription_reward_percent numeric,
+  p_subscription_reward_fixed numeric,
+  p_active boolean
+) returns public.referral_settings
+language plpgsql security definer set search_path=public
+as $$
+declare r public.referral_settings;
+begin
+  if not public.is_admin() then raise exception 'Administrateur requis'; end if;
+  update public.referral_settings set
+    purchase_percent=greatest(0,coalesce(p_purchase_percent,0)),
+    purchase_fixed=greatest(0,coalesce(p_purchase_fixed,0)),
+    seller_percent=greatest(0,coalesce(p_seller_percent,0)),
+    seller_fixed=greatest(0,coalesce(p_seller_fixed,0)),
+    shop_activation_reward_percent=greatest(0,coalesce(p_shop_activation_reward_percent,0)),
+    shop_activation_reward_fixed=greatest(0,coalesce(p_shop_activation_reward_fixed,0)),
+    subscription_reward_percent=greatest(0,coalesce(p_subscription_reward_percent,0)),
+    subscription_reward_fixed=greatest(0,coalesce(p_subscription_reward_fixed,0)),
+    active=coalesce(p_active,false), updated_at=now()
+  where id=1 returning * into r;
+  if r.id is null then raise exception 'Configuration du parrainage introuvable'; end if;
+  return r;
+end $$;
+revoke all on function public.update_referral_settings(numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,boolean) from public, anon;
+grant execute on function public.update_referral_settings(numeric,numeric,numeric,numeric,numeric,numeric,numeric,numeric,boolean) to authenticated;
