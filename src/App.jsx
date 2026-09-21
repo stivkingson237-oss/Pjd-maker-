@@ -16,7 +16,7 @@ useEffect(()=>{
   if(selectedProduct?.id && path.startsWith('/produit/')){
     const type=selectedProduct.product_type==='digital'?'Produit numérique':'Produit physique';
     title=`${selectedProduct.title||'Produit'} — PJD Market`;
-    description=(selectedProduct.description||`${type} disponible sur PJD Market.`).replace(/\\s+/g,' ').slice(0,160);
+    description=(selectedProduct.description||`${type} disponible sur PJD Market.`).replace(/\s+/g,' ').slice(0,160);
     canonical=base+'/produit/'+encodeURIComponent(selectedProduct.id);
   } else if(path.startsWith('/boutique/')) { title='Boutique — PJD Market'; description='Découvrez les produits de cette boutique sur PJD Market.'; canonical=base+path; }
   document.title=title; setMeta('description',description); setMeta('robots','index,follow,max-image-preview:large'); setProp('og:title',title); setProp('og:description',description); setProp('og:type',selectedProduct?'product':'website'); setProp('og:url',canonical); setProp('og:site_name','PJD Market'); setLink('canonical',canonical);
