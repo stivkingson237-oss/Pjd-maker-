@@ -53,3 +53,7 @@ drop policy if exists wallet_transactions_select_own on public.wallet_transactio
 create policy wallet_transactions_select_own on public.wallet_transactions
   for select to authenticated
   using (auth.uid() = user_id);
+
+-- Keep delivery state changes behind the authenticated SECURITY DEFINER RPC.
+revoke execute on function public.set_delivery_status(uuid,text) from public, anon;
+grant execute on function public.set_delivery_status(uuid,text) to authenticated;
