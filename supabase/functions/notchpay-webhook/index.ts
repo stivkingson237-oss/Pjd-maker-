@@ -82,8 +82,8 @@ Deno.serve(async req => {
     }
     if (currency !== "XAF") return json({ error: "Devise webhook inattendue." }, 400);
 
-    const successEvents = new Set(["payment.complete", "payment.completed", "payment.success", "payment.succeeded"]);
-    const failedEvents = new Set(["payment.failed", "payment.failure", "payment.canceled", "payment.cancelled", "payment.expired"]);
+    const successEvents = new Set(["payment.complete", "payment.completed", "payment.success", "payment.succeeded", "transaction.complete", "transaction.completed", "transaction.success", "transaction.succeeded"]);
+    const failedEvents = new Set(["payment.failed", "payment.failure", "payment.canceled", "payment.cancelled", "payment.expired", "transaction.failed", "transaction.failure", "transaction.canceled", "transaction.cancelled", "transaction.expired"]);
 
     if (successEvents.has(type)) {
       const update = await supabase.from("payments").update({
