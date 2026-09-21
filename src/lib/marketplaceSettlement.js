@@ -26,7 +26,7 @@ export async function requestSellerWithdrawal({ userId, amount, method, accountR
   }
   const { data, error } = await supabase
     .from('withdrawal_requests')
-    .insert({ user_id: userId, amount, method, account_reference: accountReference })
+    .insert({ user_id: userId, amount, method, phone: accountReference })
     .select()
     .single()
   if (error) throw error
