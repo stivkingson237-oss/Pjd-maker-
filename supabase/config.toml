@@ -1,2 +1,8 @@
 [functions.mtn-webhook]
 verify_jwt = false
+
+[functions.notchpay-checkout]
+verify_jwt = true
+
+[functions.notchpay-webhook]
+verify_jwt = false
