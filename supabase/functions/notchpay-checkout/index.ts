@@ -24,7 +24,7 @@ Deno.serve(async req=>{
   if(!r.ok)return json({error:provider?.message||provider?.error?.message||"Notch Pay a refusé l'initialisation.",provider_status:r.status,details:provider?.errors||null},502);
   const t=provider?.transaction||provider?.data?.transaction||null,ref=String(t?.reference||t?.trxref||provider?.data?.reference||"").trim(),url=provider?.authorization_url||provider?.data?.authorization_url||null;
   if(!ref)return json({error:"Notch Pay n'a pas retourné la référence de transaction."},502);
-  const cr=await fetch(API+"/payments/"+encodeURIComponent(ref),{method:"POST",headers:{Authorization:NOTCHPAY_API_KEY,"Content-Type":"application/json"},body:JSON.stringify({channel:ch,phone:p})});
+  const cr=await fetch(API+"/payments/"+encodeURIComponent(ref),{method:"POST",headers:{Authorization:NOTCHPAY_API_KEY,"Content-Type":"application/json"},body:JSON.stringify({channel:ch,phone:p.replace(/^\\+/,"")})});
   const ct=await cr.text();let charge:any={};try{charge=ct?JSON.parse(ct):{}}catch{charge={raw:ct}}
   if(!cr.ok){
    return json({error:charge?.message||charge?.error?.message||"Notch Pay a refusé la demande Mobile Money.",provider_status:cr.status,details:charge?.errors||null,paymentId:ref,authorization_url:url},502);
