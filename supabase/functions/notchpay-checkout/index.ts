@@ -17,16 +17,16 @@ if(oe||!o)return json({error:"Commande introuvable."},404);if(String(o.user_id)!
 const current=String(o.payment_status||o.status||"").toLowerCase();if(["paid","completed","confirmed","processing","shipped","delivered"].includes(current))return json({success:true,already_paid:true,orderId});
 const amount=Number(o.total);if(!Number.isFinite(amount)||amount<=0)return json({error:"Montant de commande invalide."},400);
 const paymentReference=orderId+"-"+Date.now();
-const payload={amount:Math.round(amount),currency:"XAF",customer:{email:a.user.email||undefined,phone:p},description:"PJD Market - Commande "+orderId,reference:paymentReference,callback:"https://pjd-maket.vercel.app/notchpay-callback.html",locked_country:"CM",metadata:{order_id:orderId,pjd_order_id:orderId,user_id:a.user.id,preferred_channel:ch}};
+const payload={amount:Math.round(amount),currency:"XAF",customer:{email:a.user.email||undefined,phone:p},description:"PJD Market - Commande "+orderId,reference:paymentReference,callback:"https://pjd-maker.vercel.app/notchpay-callback.html",locked_country:"CM",metadata:{order_id:orderId,pjd_order_id:orderId,user_id:a.user.id,preferred_channel:ch}};
 const r=await fetch(API+"/payments",{method:"POST",headers:{Authorization:NOTCHPAY_API_KEY,"Content-Type":"application/json"},body:JSON.stringify(payload)}),txt=await r.text();
 let provider:any={};try{provider=txt?JSON.parse(txt):{}}catch{provider={raw:txt}}
 if(!r.ok)return json({error:provider?.message||provider?.error?.message||"Notch Pay a refusé l'initialisation.",provider_status:r.status,details:provider?.errors||null},502);
-const t=provider?.transaction||provider?.data?.transaction||null;
-const ref=String(t?.reference||t?.trxref||provider?.data?.reference||"").trim(),url=provider?.authorization_url||provider?.data?.authorization_url||null;
+const t=provider?.transaction||provider?.data?.transaction||provider?.data||provider;
+const ref=String(t?.reference||t?.trxref||t?.transaction_reference||provider?.data?.reference||provider?.reference||"").trim(),url=t?.authorization_url||provider?.authorization_url||provider?.data?.authorization_url||null;
 if(!ref)return json({error:"Notch Pay n'a pas retourné la référence de transaction."},502);
 if(!url)return json({error:"Notch Pay n'a pas retourné la page de paiement sécurisée.",paymentId:ref},502);
 const ins=await supabase.from("payments").insert({user_id:a.user.id,order_id:orderId,amount,currency:"XAF",method:"notchpay",status:"pending",statut:"en_attente",tx_id:ref,payment_ref:paymentReference,item_ref:orderId,phone:p,operator:ch,provider:"notchpay",provider_reference:paymentReference,provider_transaction_id:ref,metadata:{provider:"notchpay",network:ch,authorization_url:url,flow:"hosted_collect"},raw_response:{initialize:provider},updated_at:new Date().toISOString()});
 if(ins.error)return json({error:"Paiement initialisé mais impossible d'enregistrer la transaction PJD Market.",details:ins.error.message},500);
 await supabase.from("orders").update({payment_method:"notchpay",payment_status:"PENDING"}).eq("id",orderId);
-return json({success:true,pending:true,orderId,paymentId:ref,authorization_url:url,status:"pending",instruction:"Vous allez être redirigé vers la page sécurisée Notch Pay pour choisir et confirmer le paiement.",flow:"hosted_collect"});
+return json({success:true,pending:true,orderId,paymentId:ref,tx_ref:ref,authorization_url:url,status:"pending",instruction:"Vous allez être redirigé vers la page sécurisée Notch Pay pour choisir et confirmer le paiement.",flow:"hosted_collect"});
 }catch(error){return json({error:error instanceof Error?error.message:"Erreur Notch Pay."},500)}});
