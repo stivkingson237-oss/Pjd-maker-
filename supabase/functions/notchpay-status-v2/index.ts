@@ -49,10 +49,10 @@ Deno.serve(async req=>{
     let provider:any={}; try{provider=txt?JSON.parse(txt):{}}catch{provider={raw:txt}};
     if(!r.ok) return json({error:provider?.message||provider?.error?.message||"Impossible de vérifier le paiement Notch Pay.",provider_status:r.status,paymentId:reference},502);
 
-    const tx=provider?.transaction||provider?.data?.transaction||provider?.payment||provider?.data||{};
-    const status=norm(tx?.status||provider?.status||"pending");
-    const amount=Number(tx?.amount??tx?.amount_total??provider?.amount);
-    const currency=String(tx?.currency??provider?.currency??"XAF").toUpperCase();
+    const tx=provider?.transaction||provider?.data?.transaction||provider?.payment||provider?.data||provider||{};
+    const status=norm(tx?.status||tx?.payment_status||tx?.state||provider?.status||provider?.payment_status||"pending");
+    const amount=Number(tx?.amount??tx?.amount_total??tx?.amount_paid??provider?.amount??provider?.data?.amount);
+    const currency=String(tx?.currency??provider?.currency??provider?.data?.currency??"XAF").toUpperCase();
 
     if(Number.isFinite(amount) && payment && Math.round(amount)!==Math.round(Number(payment.amount))) {
       return json({error:"Montant Notch Pay différent du montant de la commande."},400);
