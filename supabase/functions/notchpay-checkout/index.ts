@@ -28,7 +28,7 @@ if(!ref)return json({error:"Notch Pay n'a pas retourné la référence de transa
 // Notch Pay sépare l'initialisation du paiement et le déclenchement du moyen de paiement.
 // Sans cet appel POST /payments/{reference}, une transaction Mobile Money peut rester
 // non chargée puis être marquée failed. On force ici le canal choisi par l'utilisateur.
-const chargePhone=p.replace(/\\D/g,"");
+const chargePhone=p.replace(/\D/g,"");
 const charge=await fetch(API+"/payments/"+encodeURIComponent(ref),{method:"POST",headers:{Authorization:NOTCHPAY_API_KEY,"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({channel:ch,phone:chargePhone,email:a.user.email||undefined})});
 const chargeTxt=await charge.text();
 let chargeData:any={};try{chargeData=chargeTxt?JSON.parse(chargeTxt):{}}catch{chargeData={raw:chargeTxt}}
