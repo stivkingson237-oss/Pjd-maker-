@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Retour paiement — PJD Market</title>
+<meta http-equiv="refresh" content="0;url=/">
+</head>
+<body>
+<p>Retour vers PJD Market…</p>
+<script>
+(function(){
+  var q=new URLSearchParams(window.location.search);
+  var out=new URLSearchParams();
+  out.set('notchpay','1');
+  if(q.get('reference')) out.set('reference',q.get('reference'));
+  if(q.get('transaction')) out.set('transaction',q.get('transaction'));
+  if(q.get('trxref')) out.set('trxref',q.get('trxref'));
+  if(q.get('order_id')) out.set('order_id',q.get('order_id'));
+  window.location.replace('/?'+out.toString());
+})();
+</script>
+</body>
+</html>
