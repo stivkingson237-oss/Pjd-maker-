@@ -45,14 +45,14 @@ Deno.serve(async req => {
     try { event = JSON.parse(raw); } catch { return json({ error: "Payload JSON invalide." }, 400); }
 
     const type = String(event?.type || event?.event || "").toLowerCase();
-    const data = event?.data || event?.transaction || {};
-    const transaction = data?.transaction && typeof data.transaction === "object" ? data.transaction : {};
+    const data = event?.data || event?.transaction || event?.payload || {};
+    const transaction = data?.transaction && typeof data.transaction === "object" ? data.transaction : (data?.payment && typeof data.payment === "object" ? data.payment : {});
     const reference = first(
       data?.reference, transaction?.reference, data?.customer_meta?.order_id,
       data?.customer_meta?.pjd_order_id, data?.metadata?.order_id,
       data?.metadata?.pjd_order_id, event?.metadata?.order_id, event?.metadata?.pjd_order_id
     );
-    const providerId = first(data?.id, data?.transaction_id, transaction?.id, transaction?.trxref, event?.id);
+    const providerId = first(data?.transaction_id, transaction?.id, transaction?.trxref, data?.id, event?.id);
     if (!reference && !providerId) return json({ received: true, ignored: true, reason: "reference_missing" });
 
     let payment: any = null;
