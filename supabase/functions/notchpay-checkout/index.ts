@@ -33,7 +33,7 @@ function phone(v: unknown) {
 
 function channel(v: unknown) {
   const n = String(v ?? "").toUpperCase().replace(/\s+/g, "");
-  if (n === "MTN" || n === "MTNMOBILEMONEY") return "cm.mtn";
+  if (n === "MTN" || n === "MTNMOBILEMONEY") return "cm.mobile";
   if (n === "ORANGE" || n === "ORANGEMONEY") return "cm.orange";
   return "";
 }
@@ -111,7 +111,7 @@ Deno.serve(async req => {
         paymentId: existing.provider_transaction_id,
         tx_ref: existing.provider_transaction_id,
         status: "pending",
-        mobile_money_request: selectedChannel === "cm.mtn",
+        mobile_money_request: selectedChannel === "cm.mobile",
         instruction:
           selectedChannel === "cm.mtn"
             ? "Une demande MTN Mobile Money est déjà en attente. Validez-la sur votre téléphone."
@@ -204,7 +204,8 @@ Deno.serve(async req => {
       },
       body: JSON.stringify({
         channel: selectedChannel,
-        phone: payerPhone.replace(/\D/g, ""),
+        phone: payerPhone,
+        account_number: payerPhone.replace(/\D/g, ""),
         email: authData.user.email || undefined,
       }),
     });
@@ -250,7 +251,7 @@ Deno.serve(async req => {
     // MTN must remain on the native Mobile Money approval flow. If Notch also
     // returns an authorization URL, keep it in metadata for diagnostics but do
     // not send the customer away from the PJD checkout.
-    const isDirectMobileMoney = selectedChannel === "cm.mtn" || selectedChannel === "cm.orange";
+    const isDirectMobileMoney = selectedChannel === "cm.mobile" || selectedChannel === "cm.orange";
     const authorizationUrl = isDirectMobileMoney ? null : hostedUrl;
 
     const instruction =
@@ -282,11 +283,11 @@ Deno.serve(async req => {
       provider_transaction_id: reference,
       metadata: {
         provider: "notchpay",
-        network: selectedChannel,
+        network: selectedChannel, selected_operator: String(body?.network || "").toUpperCase(),
         authorization_url: hostedUrl,
         flow: isDirectMobileMoney ? "direct_mobile_money_charge" : "hosted_collect",
         charge_status: chargeStatus,
-        mobile_money_request: selectedChannel === "cm.mtn",
+        mobile_money_request: selectedChannel === "cm.mobile",
       },
       raw_response: {
         initialize: initData,
