@@ -103,7 +103,7 @@ Deno.serve(async req => {
       const update = await supabase.from("payments").update({
         status: "completed", statut: "payé",
         provider_reference: payment.provider_reference || reference || null,
-        provider_transaction_id: providerId || payment.provider_transaction_id,
+        provider_transaction_id: reference || providerId || payment.provider_transaction_id,
         raw_response: event,
         metadata: { provider: "notchpay", event_type: type, event_id: eventId || null, reference: reference || null, completed_at: data?.completed_at || event?.created_at || new Date().toISOString() },
         settled_at: new Date().toISOString(), updated_at: new Date().toISOString()
