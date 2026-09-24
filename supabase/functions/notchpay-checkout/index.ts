@@ -286,7 +286,7 @@ Deno.serve(async req => {
         authorization_url: hostedUrl,
         flow: isDirectMobileMoney ? "direct_mobile_money_charge" : "hosted_collect",
         charge_status: chargeStatus,
-        mobile_money_request: selectedChannel === "cm.mobile",
+        mobile_money_request: selectedChannel === "cm.mtn" || selectedChannel === "cm.orange",
       },
       raw_response: {
         initialize: initData,
