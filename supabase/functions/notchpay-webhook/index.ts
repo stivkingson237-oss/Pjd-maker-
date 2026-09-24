@@ -36,6 +36,7 @@ Deno.serve(async req => {
   try {
     const raw = await req.text();
     const signature = req.headers.get("x-notch-signature") || "";
+    const deliveryId = String(req.headers.get("x-notch-delivery-id") || "").trim();
     if (!signature) return json({ error: "Signature manquante." }, 401);
     if (!safeEqual((await hmac(raw, WEBHOOK_HASH)).toLowerCase(), signature.trim().toLowerCase())) {
       return json({ error: "Signature Notch Pay invalide." }, 403);
@@ -45,6 +46,19 @@ Deno.serve(async req => {
     try { event = JSON.parse(raw); } catch { return json({ error: "Payload JSON invalide." }, 400); }
 
     const type = String(event?.type || event?.event || "").toLowerCase();
+    const eventId = first(event?.id, deliveryId);
+    if (eventId) {
+      const existingEvent = await supabase.from("payment_webhook_events").select("id").eq("provider", "notchpay").eq("delivery_id", eventId).maybeSingle();
+      if (existingEvent.error) throw existingEvent.error;
+      if (existingEvent.data) return json({ received: true, processed: false, duplicate: true, event_id: eventId });
+      const ledger = await supabase.from("payment_webhook_events").insert({
+        provider: "notchpay", delivery_id: eventId, event_type: type || null, payload: event
+      });
+      if (ledger.error) {
+        if (ledger.error.code === "23505") return json({ received: true, processed: false, duplicate: true, event_id: eventId });
+        throw ledger.error;
+      }
+    }
     const data = event?.data || event?.transaction || event?.payload || {};
     const transaction = data?.transaction && typeof data.transaction === "object" ? data.transaction : (data?.payment && typeof data.payment === "object" ? data.payment : {});
     const reference = first(
@@ -91,7 +105,7 @@ Deno.serve(async req => {
         provider_reference: payment.provider_reference || reference || null,
         provider_transaction_id: providerId || payment.provider_transaction_id,
         raw_response: event,
-        metadata: { provider: "notchpay", event_type: type, event_id: event?.id || null, reference: reference || null, completed_at: data?.completed_at || event?.created_at || new Date().toISOString() },
+        metadata: { provider: "notchpay", event_type: type, event_id: eventId || null, reference: reference || null, completed_at: data?.completed_at || event?.created_at || new Date().toISOString() },
         settled_at: new Date().toISOString(), updated_at: new Date().toISOString()
       }).eq("id", payment.id);
       if (update.error) throw update.error;
@@ -112,7 +126,7 @@ Deno.serve(async req => {
         provider_reference: payment.provider_reference || reference || null,
         provider_transaction_id: providerId || payment.provider_transaction_id,
         failure_reason: type, raw_response: event,
-        metadata: { provider: "notchpay", event_type: type, event_id: event?.id || null, reference: reference || null },
+        metadata: { provider: "notchpay", event_type: type, event_id: eventId || null, reference: reference || null },
         updated_at: new Date().toISOString()
       }).eq("id", payment.id).neq("status", "completed");
       if (update.error) throw update.error;
