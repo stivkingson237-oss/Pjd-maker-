@@ -204,7 +204,8 @@ Deno.serve(async req => {
       },
       body: JSON.stringify({
         channel: selectedChannel,
-        phone: payerPhone,
+        phone: payerPhone.replace(/^\+/, ""),
+        account_number: payerPhone.replace(/\D/g, ""),
         email: authData.user.email || undefined,
       }),
     });
