@@ -242,6 +242,15 @@ Deno.serve(async req => {
       chargeData ||
       {};
 
+    // After the direct Mobile Money charge, Notch Pay may return the
+    // authoritative transaction reference. Prefer it over the initialization
+    // reference so webhook/status reconciliation always uses the real tx.
+    const chargeReference = String(
+      pick(chargeTransaction, "reference", "trxref") ||
+      pick(chargeData, "data.reference", "data.trxref", "reference", "trxref") ||
+      reference
+    ).trim();
+
     const chargeStatus = String(
       chargeTransaction?.status ||
       chargeData?.status ||
@@ -273,14 +282,14 @@ Deno.serve(async req => {
       method: "notchpay",
       status: "pending",
       statut: "en_attente",
-      tx_id: reference,
+      tx_id: chargeReference,
       payment_ref: paymentReference,
       item_ref: orderId,
       phone: payerPhone,
       operator: selectedChannel,
       provider: "notchpay",
       provider_reference: merchantReference,
-      provider_transaction_id: reference,
+      provider_transaction_id: chargeReference,
       metadata: {
         provider: "notchpay",
         network: selectedChannel, selected_operator: String(body?.network || "").toUpperCase(),
@@ -326,8 +335,8 @@ Deno.serve(async req => {
       success: true,
       pending: true,
       orderId,
-      paymentId: reference,
-      tx_ref: reference,
+      paymentId: chargeReference,
+      tx_ref: chargeReference,
       status: chargeStatus || "pending",
       authorization_url: authorizationUrl,
       mobile_money_request: selectedChannel === "cm.mtn",
