@@ -70,7 +70,8 @@ Deno.serve(async req => {
         authoritative = t?.transaction || t?.data?.transaction || t?.payment || t?.data || t;
       }
     }
-    const canonicalReference = first(reference, authoritative?.reference, authoritative?.trxref);
+    const providerReference = first(authoritative?.reference, authoritative?.trxref, data?.reference, transaction?.reference, reference);
+    const canonicalReference = providerReference;
     const canonicalId = first(authoritative?.id, providerId, data?.id);
     if (!canonicalReference && !canonicalId) return json({ received: true, ignored: true, reason: "reference_missing" });
 
@@ -108,7 +109,7 @@ Deno.serve(async req => {
       const update = await supabase.from("payments").update({
         status: "completed", statut: "payé",
         provider_reference: payment.provider_reference || canonicalReference || null,
-        provider_transaction_id: canonicalReference || payment.provider_transaction_id || canonicalId,
+        provider_transaction_id: providerReference || payment.provider_transaction_id || canonicalId,
         raw_response: event,
         metadata: { provider: "notchpay", event_type: type, event_id: eventId || null, reference: reference || null, completed_at: data?.completed_at || event?.created_at || new Date().toISOString() },
         settled_at: new Date().toISOString(), updated_at: new Date().toISOString()
@@ -116,7 +117,7 @@ Deno.serve(async req => {
       if (update.error) throw update.error;
 
       const settled = await supabase.rpc("settle_marketplace_payment", {
-        p_order_id: payment.order_id, p_tx_id: canonicalReference || canonicalId || payment.provider_transaction_id
+        p_order_id: payment.order_id, p_tx_id: providerReference || canonicalId || payment.provider_transaction_id
       });
       if (settled.error) throw settled.error;
       if (eventId) {
@@ -133,7 +134,7 @@ Deno.serve(async req => {
       const update = await supabase.from("payments").update({
         status: "failed", statut: "échoué",
         provider_reference: payment.provider_reference || canonicalReference || null,
-        provider_transaction_id: canonicalReference || payment.provider_transaction_id || canonicalId,
+        provider_transaction_id: providerReference || payment.provider_transaction_id || canonicalId,
         failure_reason: type, raw_response: event,
         metadata: { provider: "notchpay", event_type: type, event_id: eventId || null, reference: canonicalReference || null },
         updated_at: new Date().toISOString()
