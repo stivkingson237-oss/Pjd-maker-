@@ -3,12 +3,13 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const WEBHOOK_HASH = Deno.env.get("NOTCHPAY_WEBHOOK_HASH") || "";
+const WEBHOOK_HASH = Deno.env.get("NOTCHPAY_WEBHOOK_HASH") || Deno.env.get("NOTCHPAY_WEBHOOK_SECRET") || Deno.env.get("NOTCHPAY_PRIVATE_KEY") || "";
+const NOTCHPAY_API_KEY = Deno.env.get("NOTCHPAY_API_KEY") || "";
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "content-type, x-notch-signature",
+  "Access-Control-Allow-Headers": "content-type, x-notch-signature, x-notchpay-signature, x-notch-delivery-id",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 const json = (body: unknown, status = 200) =>
@@ -35,7 +36,7 @@ Deno.serve(async req => {
   if (!WEBHOOK_HASH) return json({ error: "NOTCHPAY_WEBHOOK_HASH non configurée." }, 500);
   try {
     const raw = await req.text();
-    const signature = req.headers.get("x-notch-signature") || "";
+    const signature = req.headers.get("x-notch-signature") || req.headers.get("x-notchpay-signature") || "";
     const deliveryId = String(req.headers.get("x-notch-delivery-id") || "").trim();
     if (!signature) return json({ error: "Signature manquante." }, 401);
     if (!safeEqual((await hmac(raw, WEBHOOK_HASH)).toLowerCase(), signature.trim().toLowerCase())) {
@@ -51,13 +52,6 @@ Deno.serve(async req => {
       const existingEvent = await supabase.from("payment_webhook_events").select("id").eq("provider", "notchpay").eq("delivery_id", eventId).maybeSingle();
       if (existingEvent.error) throw existingEvent.error;
       if (existingEvent.data) return json({ received: true, processed: false, duplicate: true, event_id: eventId });
-      const ledger = await supabase.from("payment_webhook_events").insert({
-        provider: "notchpay", delivery_id: eventId, event_type: type || null, payload: event
-      });
-      if (ledger.error) {
-        if (ledger.error.code === "23505") return json({ received: true, processed: false, duplicate: true, event_id: eventId });
-        throw ledger.error;
-      }
     }
     const data = event?.data || event?.transaction || event?.payload || {};
     const transaction = data?.transaction && typeof data.transaction === "object" ? data.transaction : (data?.payment && typeof data.payment === "object" ? data.payment : {});
@@ -66,23 +60,34 @@ Deno.serve(async req => {
       data?.customer_meta?.pjd_order_id, data?.metadata?.order_id,
       data?.metadata?.pjd_order_id, event?.metadata?.order_id, event?.metadata?.pjd_order_id
     );
-    const providerId = first(data?.transaction_id, transaction?.id, transaction?.trxref, data?.id, event?.id);
-    if (!reference && !providerId) return json({ received: true, ignored: true, reason: "reference_missing" });
+    const providerId = first(data?.transaction_id, transaction?.id, data?.id);
+    let authoritative:any = null;
+    const lookupId = first(data?.id, transaction?.id, data?.reference, transaction?.reference, transaction?.trxref);
+    if ((!reference || !providerId) && lookupId && NOTCHPAY_API_KEY) {
+      const rr = await fetch("https://api.notchpay.co/payments/"+encodeURIComponent(lookupId), {headers:{Authorization:NOTCHPAY_API_KEY,Accept:"application/json"}});
+      if (rr.ok) {
+        const t = await rr.json();
+        authoritative = t?.transaction || t?.data?.transaction || t?.payment || t?.data || t;
+      }
+    }
+    const canonicalReference = first(reference, authoritative?.reference, authoritative?.trxref);
+    const canonicalId = first(authoritative?.id, providerId, data?.id);
+    if (!canonicalReference && !canonicalId) return json({ received: true, ignored: true, reason: "reference_missing" });
 
     let payment: any = null;
     if (reference) {
       const q = await supabase.from("payments")
         .select("id,order_id,user_id,amount,status,provider_reference,provider_transaction_id,payment_ref")
         .eq("provider", "notchpay")
-        .or(`provider_reference.eq.${reference},provider_transaction_id.eq.${reference},payment_ref.eq.${reference}`)
+        .or(`provider_reference.eq.${canonicalReference},provider_transaction_id.eq.${canonicalReference},payment_ref.eq.${canonicalReference}`)
         .order("created_at", { ascending: false }).limit(1).maybeSingle();
       if (q.error) throw q.error;
       payment = q.data;
     }
-    if (!payment && providerId) {
+    if (!payment && canonicalId) {
       const q = await supabase.from("payments")
         .select("id,order_id,user_id,amount,status,provider_reference,provider_transaction_id,payment_ref")
-        .eq("provider", "notchpay").eq("provider_transaction_id", providerId)
+        .eq("provider", "notchpay").eq("provider_transaction_id", canonicalId)
         .order("created_at", { ascending: false }).limit(1).maybeSingle();
       if (q.error) throw q.error;
       payment = q.data;
@@ -102,8 +107,8 @@ Deno.serve(async req => {
     if (successEvents.has(type)) {
       const update = await supabase.from("payments").update({
         status: "completed", statut: "payé",
-        provider_reference: payment.provider_reference || reference || null,
-        provider_transaction_id: reference || providerId || payment.provider_transaction_id,
+        provider_reference: payment.provider_reference || canonicalReference || null,
+        provider_transaction_id: canonicalReference || payment.provider_transaction_id || canonicalId,
         raw_response: event,
         metadata: { provider: "notchpay", event_type: type, event_id: eventId || null, reference: reference || null, completed_at: data?.completed_at || event?.created_at || new Date().toISOString() },
         settled_at: new Date().toISOString(), updated_at: new Date().toISOString()
@@ -111,9 +116,13 @@ Deno.serve(async req => {
       if (update.error) throw update.error;
 
       const settled = await supabase.rpc("settle_marketplace_payment", {
-        p_order_id: payment.order_id, p_tx_id: providerId || reference || payment.provider_transaction_id
+        p_order_id: payment.order_id, p_tx_id: canonicalReference || canonicalId || payment.provider_transaction_id
       });
       if (settled.error) throw settled.error;
+      if (eventId) {
+        const ledger = await supabase.from("payment_webhook_events").insert({provider:"notchpay",delivery_id:eventId,event_type:type||null,payload:event});
+        if (ledger.error && ledger.error.code !== "23505") throw ledger.error;
+      }
       return json({ received: true, processed: true, status: "completed", order_id: payment.order_id });
     }
 
@@ -123,17 +132,25 @@ Deno.serve(async req => {
       }
       const update = await supabase.from("payments").update({
         status: "failed", statut: "échoué",
-        provider_reference: payment.provider_reference || reference || null,
-        provider_transaction_id: providerId || payment.provider_transaction_id,
+        provider_reference: payment.provider_reference || canonicalReference || null,
+        provider_transaction_id: canonicalReference || payment.provider_transaction_id || canonicalId,
         failure_reason: type, raw_response: event,
-        metadata: { provider: "notchpay", event_type: type, event_id: eventId || null, reference: reference || null },
+        metadata: { provider: "notchpay", event_type: type, event_id: eventId || null, reference: canonicalReference || null },
         updated_at: new Date().toISOString()
       }).eq("id", payment.id).neq("status", "completed");
       if (update.error) throw update.error;
       await supabase.from("orders").update({ payment_status: "FAILED" }).eq("id", payment.order_id).neq("status", "paid");
+      if (eventId) {
+        const ledger = await supabase.from("payment_webhook_events").insert({provider:"notchpay",delivery_id:eventId,event_type:type||null,payload:event});
+        if (ledger.error && ledger.error.code !== "23505") throw ledger.error;
+      }
       return json({ received: true, processed: true, status: "failed", order_id: payment.order_id });
     }
 
+    if (eventId) {
+      const ledger = await supabase.from("payment_webhook_events").insert({provider:"notchpay",delivery_id:eventId,event_type:type||null,payload:event});
+      if (ledger.error && ledger.error.code !== "23505") throw ledger.error;
+    }
     return json({ received: true, processed: false, event_type: type });
   } catch (error) {
     return json({ error: error instanceof Error ? error.message : "Erreur webhook Notch Pay." }, 500);
