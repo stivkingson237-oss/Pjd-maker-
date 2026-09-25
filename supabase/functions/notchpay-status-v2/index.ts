@@ -42,12 +42,20 @@ Deno.serve(async req=>{
     const reference=requestedRef || payment?.provider_transaction_id || payment?.provider_reference || payment?.payment_ref || "";
     if(!reference) return json({pending:true,status:"pending",message:"Référence Notch Pay introuvable."},200);
 
-    const r=await fetch("https://api.notchpay.co/payments/"+encodeURIComponent(reference),{
-      method:"GET",headers:{Authorization:NOTCHPAY_API_KEY,"Content-Type":"application/json"}
-    });
-    const txt=await r.text();
-    let provider:any={}; try{provider=txt?JSON.parse(txt):{}}catch{provider={raw:txt}};
-    if(!r.ok) return json({error:provider?.message||provider?.error?.message||"Impossible de vérifier le paiement Notch Pay.",provider_status:r.status,paymentId:reference},502);
+    const candidates=[...new Set([reference,payment?.provider_reference,payment?.payment_ref].filter(Boolean))];
+    let r:Response|null=null;
+    let provider:any={};
+    let usedReference=reference;
+    for(const candidate of candidates){
+      const rr=await fetch("https://api.notchpay.co/payments/"+encodeURIComponent(String(candidate)),{
+        method:"GET",headers:{Authorization:NOTCHPAY_API_KEY,"Content-Type":"application/json"}
+      });
+      const txt=await rr.text();
+      let parsed:any={}; try{parsed=txt?JSON.parse(txt):{}}catch{parsed={raw:txt}};
+      if(rr.ok){r=rr;provider=parsed;usedReference=String(candidate);break;}
+      r=rr;provider=parsed;
+    }
+    if(!r?.ok) return json({error:provider?.message||provider?.error?.message||"Impossible de vérifier le paiement Notch Pay.",provider_status:r?.status||502,paymentId:reference},502);
 
     const tx=provider?.transaction||provider?.data?.transaction||provider?.payment||provider?.data||provider||{};
     const status=norm(tx?.status||tx?.payment_status||tx?.state||provider?.status||provider?.payment_status||"pending");
@@ -68,10 +76,10 @@ Deno.serve(async req=>{
         if(up.error) throw up.error;
       }
       const settled=await supabase.rpc("settle_marketplace_payment",{
-        p_order_id:orderId,p_tx_id:reference
+        p_order_id:orderId,p_tx_id:tx?.reference||tx?.trxref||usedReference
       });
       if(settled.error) throw settled.error;
-      return json({confirmed:true,success:true,status:"completed",reference,paymentId:reference,orderId});
+      return json({confirmed:true,success:true,status:"completed",reference:tx?.reference||tx?.trxref||usedReference,paymentId:tx?.reference||tx?.trxref||usedReference,orderId});
     }
 
     if(failed.has(status)){
@@ -79,7 +87,7 @@ Deno.serve(async req=>{
         status:"failed",statut:"échoué",failure_reason:status,raw_response:provider,updated_at:new Date().toISOString()
       }).eq("id",payment.id).neq("status","completed");
       await supabase.from("orders").update({payment_status:"FAILED"}).eq("id",orderId).neq("status","paid");
-      return json({confirmed:false,failed:true,status,reference,paymentId:reference,orderId});
+      return json({confirmed:false,failed:true,status,reference:tx?.reference||tx?.trxref||usedReference,paymentId:tx?.reference||tx?.trxref||usedReference,orderId});
     }
 
     return json({confirmed:false,pending:true,status:status||"pending",reference,paymentId:reference,orderId});
