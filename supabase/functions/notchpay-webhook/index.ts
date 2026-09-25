@@ -76,14 +76,15 @@ Deno.serve(async req => {
     if (!canonicalReference && !canonicalId) return json({ received: true, ignored: true, reason: "reference_missing" });
 
     let payment: any = null;
-    if (reference) {
+    const lookupRefs = [...new Set([reference, canonicalReference, canonicalId].filter(Boolean).map(String))];
+    for (const refValue of lookupRefs) {
       const q = await supabase.from("payments")
         .select("id,order_id,user_id,amount,status,provider_reference,provider_transaction_id,payment_ref")
         .eq("provider", "notchpay")
-        .or(`provider_reference.eq.${canonicalReference},provider_transaction_id.eq.${canonicalReference},payment_ref.eq.${canonicalReference}`)
+        .or(`provider_reference.eq.${refValue},provider_transaction_id.eq.${refValue},payment_ref.eq.${refValue}`)
         .order("created_at", { ascending: false }).limit(1).maybeSingle();
       if (q.error) throw q.error;
-      payment = q.data;
+      if (q.data) { payment = q.data; break; }
     }
     if (!payment && canonicalId) {
       const q = await supabase.from("payments")
@@ -102,10 +103,12 @@ Deno.serve(async req => {
     }
     if (currency !== "XAF") return json({ error: "Devise webhook inattendue." }, 400);
 
+    const providerStatus = String(data?.status ?? transaction?.status ?? event?.status ?? "").toLowerCase();
+    const successStatuses = new Set(["complete","completed","paid","success","successful","succeeded","confirmed"]);
     const successEvents = new Set(["payment.complete", "payment.completed", "payment.success", "payment.succeeded", "transaction.complete", "transaction.completed", "transaction.success", "transaction.succeeded"]);
     const failedEvents = new Set(["payment.failed", "payment.failure", "payment.canceled", "payment.cancelled", "payment.expired", "transaction.failed", "transaction.failure", "transaction.canceled", "transaction.cancelled", "transaction.expired"]);
 
-    if (successEvents.has(type)) {
+    if (successEvents.has(type) || successStatuses.has(providerStatus)) {
       const update = await supabase.from("payments").update({
         status: "completed", statut: "payé",
         provider_reference: payment.provider_reference || canonicalReference || null,
@@ -127,7 +130,8 @@ Deno.serve(async req => {
       return json({ received: true, processed: true, status: "completed", order_id: payment.order_id });
     }
 
-    if (failedEvents.has(type)) {
+    const failedStatuses = new Set(["failed","failure","canceled","cancelled","expired","declined","rejected"]);
+    if (failedEvents.has(type) || failedStatuses.has(providerStatus)) {
       if (String(payment.status).toLowerCase() === "completed") {
         return json({ received: true, processed: false, ignored: true, reason: "already_completed" });
       }
