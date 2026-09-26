@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Heart, Download, Star, Package, BookOpen, Search, ShoppingCart,
   ChevronRight, Flame, Sparkles, Store, MapPin, ArrowLeft, Grid3X3,
-  Shirt, Home, BriefcaseBusiness,
+  Shirt, Home, BriefcaseBusiness, Megaphone,
 } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import { getProductImageCandidates } from "./productImageUtils";
@@ -85,6 +85,61 @@ function ProductImage({ product }) {
   </div>;
 }
 
+function AdCampaignSection({ ads, products, shops, onOpenProduct }) {
+  const activeAds = useMemo(() => ads.map((ad) => ({
+    ...ad,
+    product: products.find((p) => p.id === ad.product_id),
+    shop: shops.find((s) => s.id === ad.shop_id),
+  })).filter((ad) => ad.product), [ads, products, shops]);
+
+  useEffect(() => {
+    if (!activeAds.length) return;
+    const visitorId = localStorage.getItem("pjd-visitor-id") || null;
+    activeAds.forEach((ad) => {
+      supabase.rpc("track_pjd_ad_event", { p_ad_id: ad.id, p_event_type: "impression", p_visitor_id: visitorId })
+        .catch((e) => console.debug("PJD ad impression:", e?.message || e));
+    });
+  }, [activeAds.map((a) => a.id).join(",")]);
+
+  if (!activeAds.length) return null;
+
+  const track = async (ad, type) => {
+    const visitorId = localStorage.getItem("pjd-visitor-id") || null;
+    try { await supabase.rpc("track_pjd_ad_event", { p_ad_id: ad.id, p_event_type: type, p_visitor_id: visitorId }); }
+    catch (e) { console.debug("PJD ad tracking:", e?.message || e); }
+  };
+
+  return <section className="mh-section" style={{ marginTop: 18 }}>
+    <div className="mh-section-head">
+      <div><span className="mh-eyebrow-dark"><Megaphone size={14}/> PUBLICITÉ</span><h2>Découvrez les produits sponsorisés</h2></div>
+      <span className="mh-count">Annonces des boutiques</span>
+    </div>
+    <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))", gap:18 }}>
+      {activeAds.slice(0,6).map((ad) => {
+        const p = ad.product;
+        const image = getProductImageCandidates(p)[0] || p.cover_image || p.image_url || p.images?.[0];
+        const shop = ad.shop;
+        return <article key={ad.id} style={{ background:"#fff", border:"1px solid #e5e7eb", borderRadius:20, overflow:"hidden", boxShadow:"0 8px 28px rgba(15,23,42,.08)" }}>
+          <button type="button" onClick={async () => { await track(ad,"click"); onOpenProduct?.(p); }} style={{ display:"block", width:"100%", padding:0, border:0, background:"#f3f4f6", cursor:"pointer", position:"relative" }}>
+            {image ? <img src={image} alt={p.title || "Produit sponsorisé"} loading="eager" style={{ display:"block", width:"100%", height:260, objectFit:"cover" }}/> : <div style={{ height:260, display:"grid", placeItems:"center", fontSize:48 }}>🛍️</div>}
+            <span style={{ position:"absolute", top:12, left:12, background:"#111827", color:"#fff", padding:"6px 10px", borderRadius:999, fontSize:11, fontWeight:900 }}>SPONSORISÉ</span>
+          </button>
+          <div style={{ padding:16 }}>
+            <small style={{ color:"#6b7280" }}>{shop?.shop_name || "Boutique PJD Market"}</small>
+            <h3 style={{ margin:"5px 0 7px", fontSize:20 }}>{p.title}</h3>
+            <p style={{ margin:"0 0 12px", color:"#6b7280", minHeight:42 }}>{p.description || "Découvrez ce produit et sa boutique sur PJD Market."}</p>
+            <strong style={{ fontSize:18 }}>{money(p.promo_price ?? p.price)}</strong>
+            <div style={{ display:"flex", gap:8, marginTop:14, flexWrap:"wrap" }}>
+              <button type="button" onClick={async () => { await track(ad,"click"); onOpenProduct?.(p); }} style={{ flex:1, minWidth:120, border:0, borderRadius:10, padding:"11px 12px", background:"#f97316", color:"#fff", fontWeight:900, cursor:"pointer" }}>Voir le produit</button>
+              <button type="button" onClick={async () => { await track(ad,"shop_visit"); window.dispatchEvent(new CustomEvent("pjd-open-shop",{detail:{shopId:ad.shop_id}})); }} style={{ flex:1, minWidth:120, border:"1px solid #e5e7eb", borderRadius:10, padding:"11px 12px", background:"#fff", color:"#111827", fontWeight:900, cursor:"pointer" }}><Store size={15} style={{verticalAlign:"middle",marginRight:5}}/>Visiter la boutique</button>
+            </div>
+          </div>
+        </article>;
+      })}
+    </div>
+  </section>;
+}
+
 function ProductCard({ product, isFavorite, onFavorite, onOpenProduct }) {
   const digital = isDigital(product);
   const free = digital && (Boolean(product?.is_free) || Number(product?.price || 0) === 0);
@@ -163,6 +218,7 @@ const categoryDefs = [
 export default function MarketplaceHome() {
   const [products, setProducts] = useState([]);
   const [shops, setShops] = useState([]);
+  const [ads, setAds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
@@ -171,7 +227,7 @@ export default function MarketplaceHome() {
   const [categoryTitle, setCategoryTitle] = useState("Tous les produits");
   const [favorites, setFavorites] = useState(() => { try { return JSON.parse(localStorage.getItem("pjd-favorites") || "[]"); } catch { return []; } });
 
-  useEffect(() => { loadProducts(); loadShops(); const channel = supabase.channel("marketplace-products-home-v16").on("postgres_changes", {event:"*",schema:"public",table:"digital_products"}, loadProducts).on("postgres_changes", {event:"*",schema:"public",table:"marketplace_products"}, loadProducts).subscribe(); return () => supabase.removeChannel(channel); }, []);
+  useEffect(() => { loadProducts(); loadShops(); loadAds(); const channel = supabase.channel("marketplace-products-home-v16").on("postgres_changes", {event:"*",schema:"public",table:"digital_products"}, loadProducts).on("postgres_changes", {event:"*",schema:"public",table:"marketplace_products"}, loadProducts).subscribe(); return () => supabase.removeChannel(channel); }, []);
   useEffect(() => { localStorage.setItem("pjd-favorites", JSON.stringify(favorites)); }, [favorites]);
 
   async function loadProducts() {
@@ -191,6 +247,7 @@ export default function MarketplaceHome() {
     setLoading(false);
   }
   async function loadShops() { const { data } = await supabase.from("shops").select("id,shop_name,logo,banner,category,rating,followers_count,city,status").order("created_at", {ascending:false}).limit(12); setShops(data || []); }
+  async function loadAds() { const { data } = await supabase.from("pjd_ads").select("id,shop_id,seller_id,product_id,placement,budget,duration_days,status,impressions,clicks,shop_visits,starts_at,ends_at").eq("status","active").order("created_at",{ascending:false}).limit(12); setAds(data || []); }
 
   const physical = useMemo(() => products.filter((p) => !isDigital(p)), [products]);
   const digital = useMemo(() => products.filter(isDigital), [products]);
@@ -226,6 +283,6 @@ export default function MarketplaceHome() {
 
   return <main className="marketplace-home">
     <section className="mh-hero"><div className="mh-hero-copy"><span className="mh-eyebrow"><Sparkles size={15}/> PJD MARKET</span><h1>Tout ce dont vous avez besoin,<br/><em>au même endroit.</em></h1><p>Découvrez les produits physiques et numériques proposés par les vendeurs de PJD Market.</p><div className="mh-search"><Search size={19}/><input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Rechercher un produit, une catégorie…"/><button type="button" onClick={()=>openCategory("all","Tous les produits")}>Rechercher</button></div><div className="mh-hero-actions"><button type="button" onClick={()=>openCategory("physical","Produits physiques")}><Package size={16}/> Produits physiques</button><button type="button" onClick={()=>openCategory("digital","Produits numériques")}><BookOpen size={16}/> Produits numériques</button><button type="button" onClick={()=>openCategory("tendance","Tendances")}><Flame size={16}/> Tendances</button><button type="button" onClick={openAllShops}><Store size={16}/> Boutiques</button></div></div></section>
-    {loading ? <div className="mh-empty">Chargement des produits…</div> : <><div className="mh-large-pjd-carousel"><ProductPhotoCarousel products={products} onOpenProduct={openProduct}/></div><Section title="Tendances" eyebrow="EN CE MOMENT" icon={Flame} products={trending} favorites={favorites} onFavorite={favorite} onOpenProduct={openProduct} onSeeAll={()=>openCategory("tendance","Tendances")}/><ProductPhotoCarousel products={products} onOpenProduct={openProduct}/><Section title="Produits numériques" eyebrow="DIGITAL" icon={BookOpen} products={digital} favorites={favorites} onFavorite={favorite} onOpenProduct={openProduct} onSeeAll={()=>openCategory("digital","Produits numériques")}/><Section title="Produits physiques" eyebrow="BOUTIQUES" icon={Package} products={physical} favorites={favorites} onFavorite={favorite} onOpenProduct={openProduct} onSeeAll={()=>openCategory("physical","Produits physiques")}/><ShopsSection shops={shops} onOpenShop={(id)=>window.dispatchEvent(new CustomEvent("pjd-open-shop", {detail:{shopId:id}}))} onOpenAllShops={openAllShops}/></>}
+    {loading ? <div className="mh-empty">Chargement des produits…</div> : <><AdCampaignSection ads={ads} products={products} shops={shops} onOpenProduct={openProduct}/><div className="mh-large-pjd-carousel"><ProductPhotoCarousel products={products} onOpenProduct={openProduct}/></div><Section title="Tendances" eyebrow="EN CE MOMENT" icon={Flame} products={trending} favorites={favorites} onFavorite={favorite} onOpenProduct={openProduct} onSeeAll={()=>openCategory("tendance","Tendances")}/><ProductPhotoCarousel products={products} onOpenProduct={openProduct}/><Section title="Produits numériques" eyebrow="DIGITAL" icon={BookOpen} products={digital} favorites={favorites} onFavorite={favorite} onOpenProduct={openProduct} onSeeAll={()=>openCategory("digital","Produits numériques")}/><Section title="Produits physiques" eyebrow="BOUTIQUES" icon={Package} products={physical} favorites={favorites} onFavorite={favorite} onOpenProduct={openProduct} onSeeAll={()=>openCategory("physical","Produits physiques")}/><ShopsSection shops={shops} onOpenShop={(id)=>window.dispatchEvent(new CustomEvent("pjd-open-shop", {detail:{shopId:id}}))} onOpenAllShops={openAllShops}/></>}
   </main>;
 }
