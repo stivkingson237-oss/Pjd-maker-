@@ -41,6 +41,10 @@ async function downloadFree(product) {
   try {
     const response = await fetch(product.file_url);
     if (!response.ok) throw new Error("download");
+    try {
+      const visitorId = localStorage.getItem("pjd-visitor-id") || null;
+      await supabase.rpc("track_pjd_content_event", { p_product_id: product.id, p_event_type: "download", p_visitor_id: visitorId });
+    } catch (trackingError) { console.debug("PJD download tracking:", trackingError?.message || trackingError); }
     const blob = await response.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
