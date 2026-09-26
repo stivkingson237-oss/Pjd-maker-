@@ -97,6 +97,7 @@ export default function SellerDashboard({ session, shop, activeTab = 'dashboard'
     if (!session?.user?.id || !shop?.id) return setMsg('Votre boutique doit être active avant de publier.');
     if (!form.title.trim()) return setMsg('Indiquez le nom du produit.');
     if (!form.file) return setMsg('Sélectionnez le fichier du produit.');
+    if (form.file.size > 2*1024*1024*1024) return setMsg('Le fichier est trop volumineux. Maximum 2 Go.');
     if (!form.free && (!form.price || Number(form.price) < 0)) return setMsg('Indiquez le prix du produit ou choisissez Gratuit.');
     setSaving(true); setMsg('Publication en cours…');
     const uid = session.user.id, safe = form.file.name.replace(/[^a-zA-Z0-9._-]/g, '_'), path = `${uid}/${shop.id}/${Date.now()}-${safe}`;
