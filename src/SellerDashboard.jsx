@@ -128,7 +128,8 @@ export default function SellerDashboard({ session, shop, activeTab = 'dashboard'
         if (uploadedFile) await supabase.storage.from('product-files').remove([path]).catch(() => {});
         setMsg(`Produit : ${result.error.message}${result.error.hint ? ` — ${result.error.hint}` : ''}`);
       } else {
-        setMsg('Produit publié avec succès.');
+        await supabase.rpc('publish_pjd_bot_product',{p_product_id:result.data.id}).catch(()=>{});
+        setMsg('Produit publié avec succès. Le bot PJD Market a créé automatiquement la publication.');
         setForm({ title:'', description:'', category:'E-books & PDF', price:'', free:false, stock:'0', sku:'', file:null, cover:null });
         await load();
       }
