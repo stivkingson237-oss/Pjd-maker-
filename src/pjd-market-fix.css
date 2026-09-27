@@ -111,3 +111,6 @@ button, input, select, textarea { font: inherit; }
   .public-shop-actions-row .shop-follow-button, .public-shop-actions-row .shop-stat { font-size: 11px; padding-left: 5px; padding-right: 5px; }
   .public-shop-actions-row .shop-stat svg { width: 15px; height: 15px; }
 }
+
+/* Panier produit : le bouton rond doit afficher uniquement l'icône, sans texte débordant. */
+.public-shop-page .product-body .add-label{display:none!important}.public-shop-page .product-body .add{font-size:0;line-height:0;overflow:hidden}.public-shop-page .product-body .add svg{flex:0 0 auto;margin:0}
