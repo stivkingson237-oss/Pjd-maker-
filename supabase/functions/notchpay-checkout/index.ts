@@ -196,7 +196,7 @@ Deno.serve(async req => {
     // charge the selected channel directly with the customer's phone.
     // We intentionally DO NOT redirect MTN customers to the hosted checkout.
     const chargeResponse = await fetch(API + "/payments/" + encodeURIComponent(reference), {
-      method: "POST",
+      method: "PUT",
       headers: {
         Authorization: NOTCHPAY_API_KEY,
         "Content-Type": "application/json",
@@ -204,9 +204,9 @@ Deno.serve(async req => {
       },
       body: JSON.stringify({
         channel: selectedChannel,
-        phone: payerPhone.replace(/^\+/, ""),
-        account_number: payerPhone.replace(/\D/g, ""),
-        email: authData.user.email || undefined,
+        data: {
+          phone: payerPhone,
+        },
       }),
     });
 
