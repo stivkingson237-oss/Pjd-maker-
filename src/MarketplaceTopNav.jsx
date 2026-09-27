@@ -58,8 +58,8 @@ export default function MarketplaceTopNav({ session, shop, onOpenAffiliate, onOp
   };
 
   const boutiquesButton = (
-    <button className="pjd-boutiques-under-sell" onClick={openAllShops} type="button" aria-label="Voir toutes les boutiques">
-      <Store /><span>Boutiques</span>
+    <button className="pjd-boutiques-under-sell" onClick={openShop} type="button" aria-label="Commence à vendre">
+      <Store /><span>Commence à vendre</span>
     </button>
   );
 
