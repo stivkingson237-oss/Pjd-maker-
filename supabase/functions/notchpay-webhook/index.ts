@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const WEBHOOK_HASH = Deno.env.get("NOTCHPAY_WEBHOOK_HASH") || Deno.env.get("NOTCHPAY_WEBHOOK_SECRET") || Deno.env.get("NOTCHPAY_PRIVATE_KEY") || "";
+
 const NOTCHPAY_API_KEY = Deno.env.get("NOTCHPAY_API_KEY") || "";
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
@@ -33,15 +33,9 @@ function first(...values: unknown[]) {
 Deno.serve(async req => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "Méthode non autorisée." }, 405);
-  if (!WEBHOOK_HASH) return json({ error: "NOTCHPAY_WEBHOOK_HASH non configurée." }, 500);
   try {
     const raw = await req.text();
-    const signature = req.headers.get("x-notch-signature") || req.headers.get("x-notchpay-signature") || "";
     const deliveryId = String(req.headers.get("x-notch-delivery-id") || "").trim();
-    if (!signature) return json({ error: "Signature manquante." }, 401);
-    if (!safeEqual((await hmac(raw, WEBHOOK_HASH)).toLowerCase(), signature.trim().toLowerCase())) {
-      return json({ error: "Signature Notch Pay invalide." }, 403);
-    }
 
     let event: any;
     try { event = JSON.parse(raw); } catch { return json({ error: "Payload JSON invalide." }, 400); }
@@ -62,8 +56,11 @@ Deno.serve(async req => {
     );
     const providerId = first(data?.transaction_id, transaction?.id, data?.id);
     let authoritative:any = null;
-    const lookupId = first(data?.id, transaction?.id, data?.reference, transaction?.reference, transaction?.trxref);
-    if ((!reference || !providerId) && lookupId && NOTCHPAY_API_KEY) {
+    const lookupId = first(data?.reference, transaction?.reference, transaction?.trxref, data?.id, transaction?.id);
+    // Notch Pay's webhook documentation does not require an HMAC signature header.
+    // Treat the webhook as a notification only and always verify the transaction
+    // server-to-server with the merchant API key before changing PJD Market state.
+    if (lookupId && NOTCHPAY_API_KEY) {
       const rr = await fetch("https://api.notchpay.co/payments/"+encodeURIComponent(lookupId), {headers:{Authorization:NOTCHPAY_API_KEY,Accept:"application/json"}});
       if (rr.ok) {
         const t = await rr.json();
@@ -103,7 +100,14 @@ Deno.serve(async req => {
     }
     if (currency !== "XAF") return json({ error: "Devise webhook inattendue." }, 400);
 
-    const providerStatus = String(data?.status ?? transaction?.status ?? event?.status ?? "").toLowerCase();
+    const providerStatus = String(
+      authoritative?.status ??
+      authoritative?.payment?.status ??
+      data?.status ??
+      transaction?.status ??
+      event?.status ??
+      ""
+    ).toLowerCase();
     const successStatuses = new Set(["complete","completed","paid","success","successful","succeeded","confirmed"]);
     const successEvents = new Set(["payment.complete", "payment.completed", "payment.success", "payment.succeeded", "transaction.complete", "transaction.completed", "transaction.success", "transaction.succeeded"]);
     const failedEvents = new Set(["payment.failed", "payment.failure", "payment.canceled", "payment.cancelled", "payment.expired", "transaction.failed", "transaction.failure", "transaction.canceled", "transaction.cancelled", "transaction.expired"]);
