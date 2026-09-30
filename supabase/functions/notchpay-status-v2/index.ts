@@ -57,10 +57,11 @@ Deno.serve(async req=>{
     }
     if(!r?.ok) return json({error:provider?.message||provider?.error?.message||"Impossible de vérifier le paiement Notch Pay.",provider_status:r?.status||502,paymentId:reference},502);
 
-    const tx=provider?.transaction||provider?.data?.transaction||provider?.payment||provider?.data||provider||{};
-    const status=norm(tx?.status||tx?.payment_status||tx?.state||provider?.status||provider?.payment_status||"pending");
-    const amount=Number(tx?.amount??tx?.amount_total??tx?.amount_paid??provider?.amount??provider?.data?.amount);
-    const currency=String(tx?.currency??provider?.currency??provider?.data?.currency??"XAF").toUpperCase();
+    const responsePayment=provider?.response?.payment||provider?.response?.transaction||null;
+    const tx=provider?.transaction||provider?.data?.transaction||provider?.payment||provider?.data||responsePayment||provider||{};
+    const status=norm(tx?.status||tx?.payment_status||tx?.state||responsePayment?.status||provider?.response?.status||provider?.status||provider?.payment_status||"pending");
+    const amount=Number(tx?.amount??tx?.amount_total??tx?.amount_paid??responsePayment?.amount??provider?.amount??provider?.data?.amount);
+    const currency=String(tx?.currency??responsePayment?.currency??provider?.currency??provider?.data?.currency??"XAF").toUpperCase();
 
     if(Number.isFinite(amount) && payment && Math.round(amount)!==Math.round(Number(payment.amount))) {
       return json({error:"Montant Notch Pay différent du montant de la commande."},400);
