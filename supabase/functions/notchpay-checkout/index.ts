@@ -64,6 +64,8 @@ Deno.serve(async req => {
     const body = await req.json();
     const orderId = String(body?.orderId ?? "").trim();
     const payerPhone = phone(body?.phone);
+    const requestedMode = String(body?.mode ?? "direct").toLowerCase();
+    const hostedOnly = requestedMode === "hosted" || requestedMode === "collect";
     const selectedChannel = channel(body?.network);
 
     if (!orderId) return json({ error: "orderId requis." }, 400);
@@ -191,6 +193,26 @@ Deno.serve(async req => {
 
     if (!reference)
       return json({ error: "Notch Pay n'a pas retourné la référence de transaction." }, 502);
+
+    // Hosted fallback is opt-in: it never runs automatically after a direct attempt.
+    if (hostedOnly) {
+      if (!hostedUrl) return json({ error: "Notch Pay n'a pas fourni de page de paiement sécurisée." }, 502);
+      const hostedPaymentRow = {
+        user_id: authData.user.id, order_id: orderId, amount, currency: "XAF", method: "notchpay",
+        status: "pending", statut: "en_attente", tx_id: reference, payment_ref: paymentReference,
+        item_ref: orderId, phone: payerPhone, operator: selectedChannel, provider: "notchpay",
+        provider_reference: merchantReference, provider_transaction_id: reference,
+        metadata: { provider: "notchpay", network: selectedChannel, selected_operator: String(body?.network || "").toUpperCase(), authorization_url: hostedUrl, flow: "hosted_collect_fallback", fallback_from: "direct_mobile_money_charge" },
+        raw_response: { initialize: initData }, updated_at: new Date().toISOString(),
+      };
+      const hostedWrite = existing?.id
+        ? await supabase.from("payments").update(hostedPaymentRow).eq("id", existing.id)
+        : await supabase.from("payments").insert(hostedPaymentRow);
+      if (hostedWrite.error) return json({ error: "Paiement hébergé initialisé mais impossible d'enregistrer la transaction PJD Market.", details: hostedWrite.error.message }, 500);
+      const hostedOrderUpdate = await supabase.from("orders").update({ payment_method: "notchpay", payment_status: "PENDING" }).eq("id", orderId);
+      if (hostedOrderUpdate.error) return json({ error: hostedOrderUpdate.error.message }, 500);
+      return json({ success: true, pending: true, hosted: true, orderId, paymentId: reference, tx_ref: reference, status: "pending", authorization_url: hostedUrl, flow: "hosted_collect_fallback", instruction: "Ouvrez la page sécurisée Notch Pay pour choisir et confirmer votre moyen de paiement." });
+    }
 
     // This is the important part for MTN Mobile Money:
     // charge the selected channel directly with the customer's phone.
