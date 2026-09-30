@@ -194,9 +194,10 @@ Deno.serve(async req => {
 
     // This is the important part for MTN Mobile Money:
     // charge the selected channel directly with the customer's phone.
+    // Notch Pay complete/charge uses POST on this endpoint.
     // We intentionally DO NOT redirect MTN customers to the hosted checkout.
     const chargeResponse = await fetch(API + "/payments/" + encodeURIComponent(reference), {
-      method: "PUT",
+      method: "POST",
       headers: {
         Authorization: NOTCHPAY_API_KEY,
         "Content-Type": "application/json",
