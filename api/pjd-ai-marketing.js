@@ -161,8 +161,8 @@ export default async function handler(req, res) {
       result: fallback,
       source: 'fallback',
       warning,
-      openai_status: error?.status || null,
-      openai_code: error?.code || null
+      provider_status: error?.status || null,
+      provider_code: error?.code || null
     });
   }
 }
