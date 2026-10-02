@@ -10,11 +10,11 @@ const getKind=p=>{
  if(t.includes('epub')||/\.epub$/i.test(String(p?.file_url||'')))return'ebook';
  return'file';
 };
-const fmt=s=>{s=Math.max(0,Math.floor(Number(s)||0));const m=Math.floor(s/60),h=Math.floor(m/60),mm=m%60,ss=String(s%60).padStart(2,'0');return h?\`${h}:${String(mm).padStart(2,'0')}:${ss}\`:\`${mm}:${ss}\`};
+const fmt=s=>{s=Math.max(0,Math.floor(Number(s)||0));const m=Math.floor(s/60),h=Math.floor(m/60),mm=m%60,ss=String(s%60).padStart(2,'0');return h?`${h}:${String(mm).padStart(2,'0')}:${ss}`:`${mm}:${ss}`};
 
 export default function MediaPlayer({product}){
  const kind=useMemo(()=>getKind(product),[product]), ref=useRef(null);
- const key=\`pjd-media-progress:${product?.id}\`;
+ const key=`pjd-media-progress:${product?.id}`;
  const [url,setUrl]=useState(''),[loading,setLoading]=useState(false),[error,setError]=useState(''),[playing,setPlaying]=useState(false),[current,setCurrent]=useState(()=>Number(localStorage.getItem(key)||0)),[duration,setDuration]=useState(0);
  useEffect(()=>{setUrl('');setError('');setPlaying(false);setCurrent(Number(localStorage.getItem(key)||0));setDuration(0)},[product?.id,key]);
  if(!product?.id||kind==='file')return null;
