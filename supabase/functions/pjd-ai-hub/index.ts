@@ -2,7 +2,8 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const cors={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type","Access-Control-Allow-Methods":"POST, OPTIONS"};
 const json=(data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers:{...cors,"Content-Type":"application/json"}});
-const MODEL=Deno.env.get("GEMINI_MODEL")||"gemini-3.8-flash";
+const MODEL=Deno.env.get("GEMINI_MODEL")||"gemini-2.5-flash-lite";
+const FALLBACK_MODEL="gemini-2.5-flash-lite";
 
 type Task="general"|"product"|"marketing"|"commercial"|"seller"|"customer";
 const KNOWLEDGE=`PJD Market est une marketplace numérique multi-vendeurs destinée notamment au marché africain. Fonctionnalités connues : création de compte et connexion; boutiques vendeurs; produits physiques et numériques; fiches produit; panier et commandes; paiements et suivi; livraison et suivi; abonnements/plans vendeurs; commissions marketplace; portefeuille et retraits; affiliation/parrainage avec codes/liens, commissions et classement; promotions, codes promo et campagnes; avis produits/boutiques; suivi de boutiques; messagerie; services professionnels avec demandes et offres; annonces immobilières, véhicules et emplois; notifications; profil et paramètres; vérification/certification des boutiques; assistance IA. Les produits numériques peuvent être gratuits ou payants et leur accès/téléchargement dépend du flux d'authentification et de commande prévu par l'application. Les paiements disponibles dépendent de l'intégration active : ne jamais promettre un moyen précis sans contexte. Ne jamais inventer tarif, commission, délai, statut, disponibilité ou règle.`;
