@@ -2,7 +2,8 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const cors={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type","Access-Control-Allow-Methods":"POST, OPTIONS"};
 const json=(data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers:{...cors,"Content-Type":"application/json"}});
-const MODEL="gpt-5.6-luna";
+const MODEL=Deno.env.get("GEMINI_MODEL")||"gemini-3.8-flash";
+
 type Task="general"|"product"|"marketing"|"commercial"|"seller"|"customer";
 const KNOWLEDGE=`PJD Market est une marketplace numérique multi-vendeurs destinée notamment au marché africain. Fonctionnalités connues : création de compte et connexion; boutiques vendeurs; produits physiques et numériques; fiches produit; panier et commandes; paiements et suivi; livraison et suivi; abonnements/plans vendeurs; commissions marketplace; portefeuille et retraits; affiliation/parrainage avec codes/liens, commissions et classement; promotions, codes promo et campagnes; avis produits/boutiques; suivi de boutiques; messagerie; services professionnels avec demandes et offres; annonces immobilières, véhicules et emplois; notifications; profil et paramètres; vérification/certification des boutiques; assistance IA. Les produits numériques peuvent être gratuits ou payants et leur accès/téléchargement dépend du flux d'authentification et de commande prévu par l'application. Les paiements disponibles dépendent de l'intégration active : ne jamais promettre un moyen précis sans contexte. Ne jamais inventer tarif, commission, délai, statut, disponibilité ou règle.`;
 const SYSTEMS:Record<Task,string>={
@@ -14,12 +15,24 @@ const SYSTEMS:Record<Task,string>={
  customer:`Tu es l'Assistant client de PJD Market. Spécialiste du parcours acheteur : recherche, boutiques, fiche produit, panier, commande, paiement, livraison, téléchargement numérique, avis et contact. Utilise les données réellement fournies. Pour une donnée transactionnelle absente, explique comment la vérifier sans l'inventer.`
 };
 
+async function gemini(prompt:string, system:string, jsonMode:boolean) {
+ const key=Deno.env.get("GEMINI_API_KEY");
+ if(!key) throw new Error("GEMINI_API_KEY manquante dans Supabase.");
+ const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${encodeURIComponent(key)}`,{
+  method:"POST",headers:{"Content-Type":"application/json"},
+  body:JSON.stringify({systemInstruction:{parts:[{text:system}]},contents:[{role:"user",parts:[{text:prompt}]}],generationConfig:{temperature:0.4,maxOutputTokens:2200,...(jsonMode?{responseMimeType:"application/json"}:{})}})
+ });
+ const raw=await r.text(); let data:any; try{data=JSON.parse(raw)}catch{data={raw}};
+ if(!r.ok) throw new Error(`Gemini: ${r.status} ${data?.error?.message||raw}`);
+ const text=String(data?.candidates?.[0]?.content?.parts?.map((p:any)=>p.text||"").join("")||"").trim();
+ if(!text) throw new Error("Gemini n'a retourné aucun contenu.");
+ return {text,model:data?.modelVersion||MODEL};
+}
+
 Deno.serve(async(req)=>{
  if(req.method==="OPTIONS")return new Response("ok",{headers:cors});
  if(req.method!=="POST")return json({error:"Method not allowed"},405);
  if(!(req.headers.get("authorization")||"").startsWith("Bearer "))return json({error:"Authentification requise."},401);
- const apiKey=Deno.env.get("OPENAI_API_KEY");
- if(!apiKey)return json({error:"OPENAI_API_KEY manquante dans Supabase."},500);
  try{
   const body=await req.json();
   const task=String(body.task||"general") as Task;
@@ -29,14 +42,18 @@ Deno.serve(async(req)=>{
   if(!request)return json({error:"Message vide."},400);
   const contextText=JSON.stringify(input?.context??{}).slice(0,70000);
   const history=JSON.stringify(Array.isArray(input?.conversation)?input.conversation.slice(-12):[]).slice(0,30000);
-  const response=await fetch("https://api.openai.com/v1/chat/completions",{method:"POST",headers:{Authorization:`Bearer ${apiKey}`,"Content-Type":"application/json"},body:JSON.stringify({model:MODEL,messages:[{role:"system",content:system},{role:"user",content:`CONTEXTE AUTORISÉ :\n${contextText}\n\nHISTORIQUE RÉCENT :\n${history}\n\nMESSAGE ACTUEL :\n${request}`}],max_completion_tokens:["general","seller","customer"].includes(task)?2200:1800})});
-  const text=await response.text();
-  let data:any; try{data=JSON.parse(text)}catch{data={raw:text}};
-  if(!response.ok)return json({error:`OpenAI: ${response.status}`,details:data},response.status);
-  const content=data?.choices?.[0]?.message?.content??"";
-  let result:unknown=content;
-  const clean=String(content).replace(/^```json\s*/i,"").replace(/```$/i,"").trim();
-  if(["product","marketing","commercial"].includes(task)){try{result=JSON.parse(clean)}catch{result=content}}
-  return json({ok:true,task,model:data?.model||MODEL,result});
+  const prompt=`CONTEXTE AUTORISÉ :
+${contextText}
+
+HISTORIQUE RÉCENT :
+${history}
+
+MESSAGE ACTUEL :
+${request}`;
+  const structured=["product","marketing","commercial"].includes(task);
+  const out=await gemini(prompt,system,structured);
+  let result:unknown=out.text;
+  if(structured){try{result=JSON.parse(out.text)}catch{result=out.text}}
+  return json({ok:true,task,model:out.model,result});
  }catch(error){return json({error:error instanceof Error?error.message:"Erreur IA"},500)}
 });
