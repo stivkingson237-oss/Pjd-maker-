@@ -19,6 +19,11 @@ npm run build
 npm run preview
 ```
 
+## Déploiement Vercel
+
+Le projet est configuré pour être déployé depuis la branche `main`.
+Le fichier `vercel.json` contient le routage SPA nécessaire à l'application.
+
 ## ⚠️ Points à savoir
 
 - **`src/storagePolyfill.js`** simule `window.storage` (l'API de stockage de la
