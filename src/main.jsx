@@ -7,6 +7,7 @@ import './product-detail.css';
 import './interface-overrides.css';
 import './ai/ai-modern.css';
 import './pjd-market-fix.css';
+import './pjd-ui-system.css';
 import './public-shop-cart-bridge.js';
 
 const App = React.lazy(() => import('./App.jsx'));
