@@ -5,7 +5,7 @@ const json=(data:unknown,status=200)=>new Response(JSON.stringify(data),{status,
 const MODEL=Deno.env.get("GEMINI_MODEL")||"gemini-2.5-flash-lite";
 const FALLBACK_MODEL="gemini-2.5-flash-lite";
 
-type Task="general"|"product"|"marketing"|"commercial"|"seller"|"customer";
+type Task="general";
 const KNOWLEDGE=`PJD Market est une marketplace numérique multi-vendeurs destinée notamment au marché africain. Fonctionnalités connues : création de compte et connexion; boutiques vendeurs; produits physiques et numériques; fiches produit; panier et commandes; paiements et suivi; livraison et suivi; abonnements/plans vendeurs; commissions marketplace; portefeuille et retraits; affiliation/parrainage avec codes/liens, commissions et classement; promotions, codes promo et campagnes; avis produits/boutiques; suivi de boutiques; messagerie; services professionnels avec demandes et offres; annonces immobilières, véhicules et emplois; notifications; profil et paramètres; vérification/certification des boutiques; assistance IA. Les produits numériques peuvent être gratuits ou payants et leur accès/téléchargement dépend du flux d'authentification et de commande prévu par l'application. Les paiements disponibles dépendent de l'intégration active : ne jamais promettre un moyen précis sans contexte. Ne jamais inventer tarif, commission, délai, statut, disponibilité ou règle.`;
 const SYSTEMS:Record<Task,string>={
  general:`Tu es l'Assistant général officiel de PJD Market, guide intelligent de toute la plateforme, pas un chatbot générique. ${KNOWLEDGE} Réponds en français naturel et utile. Explique les étapes concrètes. Si une donnée précise n'est pas dans le contexte, dis-le au lieu de l'inventer.`,
@@ -37,7 +37,7 @@ Deno.serve(async(req)=>{
  try{
   const body=await req.json();
   const task=String(body.task||"general") as Task;
-  const system=SYSTEMS[task]||SYSTEMS.general;
+  const system=SYSTEM;
   const input=body.input??body.prompt??body.data??{};
   const request=String(input?.request??"").trim();
   if(!request)return json({error:"Message vide."},400);
@@ -51,10 +51,10 @@ ${history}
 
 MESSAGE ACTUEL :
 ${request}`;
-  const structured=["product","marketing","commercial"].includes(task);
+  const structured=false;
   const out=await gemini(prompt,system,structured);
   let result:unknown=out.text;
   if(structured){try{result=JSON.parse(out.text)}catch{result=out.text}}
-  return json({ok:true,task,model:out.model,result});
+  return json({ok:true,task:"general",model:out.model,result});
  }catch(error){return json({error:error instanceof Error?error.message:"Erreur IA"},500)}
 });
