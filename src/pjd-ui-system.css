@@ -1,0 +1,213 @@
+/* PJD MARKET — UI SYSTEM 2026
+   Structure visuelle globale : grille, surfaces, typographie, responsive.
+   Ne modifie pas la logique métier.
+*/
+
+:root{
+  --pjd-orange:#f97316;
+  --pjd-orange-dark:#ea580c;
+  --pjd-ink:#111827;
+  --pjd-muted:#667085;
+  --pjd-bg:#f6f7f9;
+  --pjd-card:#fff;
+  --pjd-line:#e7e9ee;
+  --pjd-radius-sm:10px;
+  --pjd-radius-md:14px;
+  --pjd-radius-lg:20px;
+  --pjd-shadow-sm:0 2px 10px rgba(16,24,40,.05);
+  --pjd-shadow-md:0 12px 30px rgba(16,24,40,.08);
+  --pjd-content:1440px;
+}
+
+html{scroll-behavior:smooth}
+body{background:var(--pjd-bg);color:var(--pjd-ink)}
+button,a,input,select,textarea{transition:background-color .18s ease,border-color .18s ease,color .18s ease,box-shadow .18s ease,transform .18s ease}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{
+  outline:3px solid rgba(249,115,22,.22);outline-offset:2px
+}
+
+/* ---------- APP SHELL ---------- */
+.marketplace,.mh-page{min-height:100vh}
+.marketplace .header,
+.marketplace .nav,
+.pjd-topnav{
+  box-shadow:0 1px 0 rgba(16,24,40,.05);
+}
+.marketplace .header{backdrop-filter:saturate(150%) blur(8px)}
+.marketplace .search:focus-within{
+  background:#fff;border-color:#fed7aa;box-shadow:0 0 0 4px rgba(249,115,22,.10)
+}
+
+/* ---------- CONTENT WIDTH ---------- */
+.mh-main,.mh-hero-inner,.mh-section,.mh-section-head,.mh-grid,
+.public-shop-hero,.shop-public,.catalog-layout,.page-title{
+  width:100%;
+  max-width:var(--pjd-content);
+  margin-left:auto;
+  margin-right:auto;
+}
+
+/* ---------- MARKET HERO ---------- */
+.mh-hero{position:relative}
+.mh-hero-inner{min-height:430px}
+.mh-hero-copy{min-width:0}
+.mh-hero h1{max-width:850px}
+.mh-search{box-shadow:0 14px 35px rgba(0,0,0,.18)}
+.mh-search:focus-within{box-shadow:0 0 0 4px rgba(249,115,22,.18),0 14px 35px rgba(0,0,0,.18)}
+
+/* ---------- CATEGORY NAV ---------- */
+.mh-category-bar{
+  scrollbar-width:none;
+  -webkit-overflow-scrolling:touch;
+}
+.mh-category-bar::-webkit-scrollbar{display:none}
+.mh-category-bar button{flex:0 0 auto}
+
+/* ---------- TOOLBAR ---------- */
+.mh-toolbar,.mh-section-head{min-width:0}
+.mh-toolbar h2,.mh-section-head h2{color:var(--pjd-ink)}
+.mh-actions{flex-wrap:wrap}
+.mh-actions button:hover,.mh-actions select:hover{
+  border-color:#fdba74;color:var(--pjd-orange-dark);background:#fffaf5
+}
+
+/* ---------- PRODUCT GRIDS ---------- */
+.mh-grid,.public-shop-page .products,.catalog-products .products{
+  align-items:stretch;
+}
+.mh-product-card,.public-shop-page .product-card,.product-card{
+  min-width:0;
+  height:100%;
+  border:1px solid var(--pjd-line);
+  box-shadow:var(--pjd-shadow-sm);
+}
+.mh-product-card:hover,.public-shop-page .product-card:hover,.product-card:hover{
+  border-color:#f3d0b4;
+  box-shadow:var(--pjd-shadow-md);
+}
+.mh-art,.public-shop-page .product-art,.product-art{
+  background:#f0f2f5;
+}
+.mh-art img,.public-shop-page .product-art img,.product-art img{
+  object-fit:contain;
+  background:#f4f5f7;
+}
+.mh-body,.public-shop-page .product-body,.product-body{min-width:0}
+.mh-body h3,.public-shop-page .product-body h3,.product-body h3{
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.mh-buy,.public-shop-page .add,.product-card .add{
+  min-height:44px;
+}
+.mh-buy:hover,.public-shop-page .add:hover,.product-card .add:hover{
+  transform:translateY(-1px);
+  box-shadow:0 7px 18px rgba(249,115,22,.16);
+}
+
+/* ---------- SELLER CTA ---------- */
+.mh-seller-cta{
+  box-shadow:var(--pjd-shadow-md);
+  overflow:hidden;
+}
+.mh-seller-cta button:hover{
+  transform:translateY(-1px);
+  box-shadow:0 8px 20px rgba(249,115,22,.22);
+}
+
+/* ---------- PUBLIC SHOP ---------- */
+.public-shop-page{
+  min-height:100vh;
+  background:var(--pjd-bg);
+}
+.public-shop-banner{
+  box-shadow:var(--pjd-shadow-sm);
+}
+.public-shop-actions-row{
+  gap:8px;
+}
+.product-category-tabs{
+  scrollbar-width:none;
+  -webkit-overflow-scrolling:touch;
+}
+.product-category-tabs::-webkit-scrollbar{display:none}
+
+/* ---------- FORMS / PANELS ---------- */
+.filters,.mh-filter-panel,
+.public-shop-page .product-body,
+.shop-review-card,[role="dialog"]{
+  border-color:var(--pjd-line);
+}
+input:not([type=checkbox]):not([type=radio]),select,textarea{
+  border-color:var(--pjd-line);
+}
+input:not([type=checkbox]):not([type=radio]):focus,select:focus,textarea:focus{
+  border-color:#fdba74!important;
+  box-shadow:0 0 0 4px rgba(249,115,22,.10);
+  outline:none;
+}
+
+/* ---------- BUTTON HIERARCHY ---------- */
+.primary,.mh-buy,.mh-seller-cta button{
+  font-weight:800;
+}
+.primary:hover,.mh-seller-cta button:hover{
+  background:var(--pjd-orange-dark)!important;
+}
+.secondary:hover{
+  border-color:#fdba74;background:#fffaf5
+}
+
+/* ---------- MOBILE: 2-COLUMN SHOPPING FIRST ---------- */
+@media(max-width:767px){
+  .mh-main{padding-left:14px;padding-right:14px}
+  .mh-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .mh-art{height:185px}
+  .mh-body{padding:11px}
+  .mh-body h3{font-size:14px;line-height:1.25}
+  .mh-body p{font-size:11px}
+  .mh-price strong{font-size:16px}
+  .mh-buy{font-size:11px;padding:9px 6px}
+  .mh-toolbar{gap:12px}
+  .mh-actions{width:100%}
+  .mh-actions>*{min-width:0;flex:1}
+  .mh-seller-cta{padding:24px}
+  .mh-seller-cta h2{font-size:24px}
+  .section,.page-title{padding-left:14px;padding-right:14px}
+  .catalog-layout{padding-left:14px;padding-right:14px}
+  .filters{order:0}
+}
+
+/* ---------- SMALL PHONES ---------- */
+@media(max-width:430px){
+  .mh-hero-inner{padding-left:14px;padding-right:14px}
+  .mh-hero h1{font-size:clamp(34px,10vw,42px)}
+  .mh-grid{gap:8px}
+  .mh-art{height:165px}
+  .mh-body{padding:9px}
+  .mh-heart{width:32px;height:32px;right:7px;top:7px}
+  .mh-type,.mh-sale{left:7px}
+  .mh-price{margin:7px 0 9px}
+  .mh-buy{min-height:40px}
+}
+
+/* ---------- TABLET ---------- */
+@media(min-width:768px) and (max-width:1100px){
+  .mh-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+  .mh-art{height:190px}
+}
+
+/* ---------- LARGE DESKTOP ---------- */
+@media(min-width:1200px){
+  .mh-grid{gap:18px}
+  .mh-main{padding-top:38px}
+}
+
+/* ---------- ACCESSIBILITY / PERFORMANCE ---------- */
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    scroll-behavior:auto!important;
+    transition-duration:.01ms!important;
+    animation-duration:.01ms!important;
+  }
+}
