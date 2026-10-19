@@ -13,6 +13,9 @@ export default function SellerDashboard({ session, shop, activeTab = 'dashboard'
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
   const [wallet, setWallet] = useState({ balance:0, pending_balance:0, currency:'XAF' });
+  const [transactions, setTransactions] = useState([]);
+  const [withdrawals, setWithdrawals] = useState([]);
+  const [withdraw, setWithdraw] = useState({ amount:'', method:'MTN Mobile Money', phone:'' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
@@ -27,14 +30,20 @@ export default function SellerDashboard({ session, shop, activeTab = 'dashboard'
     setLoading(true); setMsg('');
     const uid = session.user.id;
     try {
-      const [digital, physical, walletResult] = await Promise.all([
+      const [digital, physical, walletResult, txResult, withdrawalResult] = await Promise.all([
         supabase.from('digital_products').select('*').eq('seller_id', uid).order('created_at', { ascending:false }),
         supabase.from('marketplace_products').select('*').eq('seller_id', uid).order('created_at', { ascending:false }),
-        supabase.from('seller_wallets').select('balance,pending_balance,currency').eq('user_id', uid).maybeSingle()
+        supabase.from('seller_wallets').select('balance,pending_balance,currency').eq('user_id', uid).maybeSingle(),
+        supabase.from('wallet_transactions').select('id,type,amount,description,status,reference_id,currency,created_at').eq('user_id', uid).order('created_at', { ascending:false }).limit(100),
+        supabase.from('withdrawal_requests').select('id,amount,currency,method,phone,status,requested_at,decided_at,note').eq('user_id', uid).order('requested_at', { ascending:false }).limit(50)
       ]);
       if (digital.error) throw digital.error;
       if (physical.error) throw physical.error;
+      if (txResult.error) throw txResult.error;
+      if (withdrawalResult.error) throw withdrawalResult.error;
       setWallet(walletResult.data || { balance:0, pending_balance:0, currency:'XAF' });
+      setTransactions(txResult.data || []);
+      setWithdrawals(withdrawalResult.data || []);
       setProducts([...(digital.data || []).map(p => ({ ...p, product_type:'digital' })), ...(physical.data || []).map(p => ({ ...p, product_type:'physical' }))]);
       try {
         const oi = await supabase.from('order_items').select('order_id,name,price,unit_price,line_total,quantity,commission,seller_net').eq('seller_id', uid);
@@ -138,6 +147,23 @@ export default function SellerDashboard({ session, shop, activeTab = 'dashboard'
       setMsg(`Publication : ${error?.message || 'erreur réseau inconnue'}`);
     } finally { setSaving(false); }
   }
+  async function requestWithdrawal(e) {
+    e.preventDefault();
+    const amount = Number(withdraw.amount);
+    if (!Number.isFinite(amount) || amount <= 0) return setMsg('Indiquez un montant de retrait valide.');
+    if (amount > Number(wallet.balance || 0)) return setMsg('Le montant dépasse le solde disponible.');
+    if (!withdraw.phone.trim()) return setMsg('Indiquez le numéro Mobile Money de destination.');
+    setSaving(true); setMsg('Envoi de la demande de retrait…');
+    try {
+      const { error } = await supabase.rpc('request_seller_withdrawal', { p_amount:amount, p_method:withdraw.method, p_phone:withdraw.phone.trim() });
+      if (error) throw error;
+      setWithdraw({ amount:'', method:'MTN Mobile Money', phone:'' });
+      setMsg('Demande de retrait enregistrée. Le solde et l’historique ont été actualisés.');
+      await load();
+    } catch (error) { setMsg(`Retrait : ${error?.message || 'impossible de créer la demande.'}`); }
+    finally { setSaving(false); }
+  }
+
   async function savePrice(p) {
     const key = `${p.product_type}:${p.id}`, edit = edits[key] || { price:String(p.price ?? 0), promo:p.promo_price == null ? '' : String(p.promo_price) }, price = Number(edit.price), promo = edit.promo === '' ? null : Number(edit.promo);
     if (!Number.isFinite(price) || price < 0) return setMsg('Prix invalide.');
@@ -147,7 +173,7 @@ export default function SellerDashboard({ session, shop, activeTab = 'dashboard'
   }
 
   if (tab === 'dashboard') return <Dashboard stats={stats} products={products} wallet={wallet} loading={loading} refresh={load} />;
-  if (tab === 'finance') return <Simple title="Revenus & solde" icon={<Wallet size={30} />}><FinanceCards stats={stats} wallet={wallet} /></Simple>;
+  if (tab === 'finance') return <Simple title="Revenus & solde" icon={<Wallet size={30} />}><FinanceCards stats={stats} wallet={wallet} /><form onSubmit={requestWithdrawal} style={{marginTop:18,padding:16,border:'1px solid #e5e7eb',borderRadius:14,display:'grid',gap:12,background:'#fff'}}><h3 style={{margin:0}}>Demander un retrait</h3><label>Montant (FCFA)<input type="number" min="1" max={Number(wallet.balance||0)} value={withdraw.amount} onChange={e=>setWithdraw(x=>({...x,amount:e.target.value}))} style={{display:'block',width:'100%',boxSizing:'border-box',padding:11,marginTop:5}} /></label><label>Moyen de paiement<select value={withdraw.method} onChange={e=>setWithdraw(x=>({...x,method:e.target.value}))} style={{display:'block',width:'100%',padding:11,marginTop:5}}><option>MTN Mobile Money</option><option>Orange Money</option><option>Virement bancaire</option></select></label><label>Numéro de destination<input value={withdraw.phone} onChange={e=>setWithdraw(x=>({...x,phone:e.target.value}))} placeholder="6XXXXXXXX" style={{display:'block',width:'100%',boxSizing:'border-box',padding:11,marginTop:5}} /></label><button className="primary" disabled={saving}>{saving?'Envoi…':'Envoyer la demande de retrait'}</button></form><FinanceHistory transactions={transactions} withdrawals={withdrawals} /></Simple>;
   if (tab === 'stock') return <Simple title="Gestion du stock" icon={<Boxes size={30} />}><div>{products.map(p => <div key={`${p.product_type}:${p.id}`} style={{display:'flex',justifyContent:'space-between',padding:12,borderBottom:'1px solid #eee'}}><span>{p.title}</span><b>{Number(p.stock || 0)} unité(s)</b></div>)}</div></Simple>;
   if (tab !== 'products') return <Simple title="Espace vendeur" icon={<Boxes size={30} />}><p>Utilisez le menu vendeur pour accéder aux produits, revenus et stock.</p></Simple>;
 
@@ -155,6 +181,7 @@ export default function SellerDashboard({ session, shop, activeTab = 'dashboard'
 }
 
 function Simple({title,icon,children}) { return <div className="seller-card wide-card"><div className="page-title"><div><span className="eyebrow">ESPACE VENDEUR</span><h2>{title}</h2></div>{icon}</div>{children}</div>; }
+function FinanceHistory({transactions,withdrawals}) { const fmt=d=>d?new Date(d).toLocaleString('fr-FR'):'—'; return <div style={{display:'grid',gap:16,marginTop:18}}><section style={{padding:16,border:'1px solid #e5e7eb',borderRadius:14,background:'#fff'}}><h3 style={{marginTop:0}}>Historique des mouvements</h3>{transactions.length?transactions.map(t=><div key={t.id} style={{display:'flex',justifyContent:'space-between',gap:12,padding:'10px 0',borderBottom:'1px solid #eee'}}><div><b>{t.description||t.type||'Transaction'}</b><small style={{display:'block',color:'#667085'}}>{fmt(t.created_at)} · {t.status||'—'}</small></div><strong>{['withdrawal','debit'].includes(String(t.type).toLowerCase())?'−':'+'}{money(t.amount)}</strong></div>):<p>Aucun mouvement enregistré pour le moment.</p>}</section><section style={{padding:16,border:'1px solid #e5e7eb',borderRadius:14,background:'#fff'}}><h3 style={{marginTop:0}}>Historique des retraits</h3>{withdrawals.length?withdrawals.map(w=><div key={w.id} style={{display:'flex',justifyContent:'space-between',gap:12,padding:'10px 0',borderBottom:'1px solid #eee'}}><div><b>{w.method||'Retrait'} · {w.phone||'—'}</b><small style={{display:'block',color:'#667085'}}>{fmt(w.requested_at)} · {w.note||''}</small></div><div style={{textAlign:'right'}}><strong>{money(w.amount)}</strong><small style={{display:'block'}}>{w.status||'pending'}</small></div></div>):<p>Aucune demande de retrait.</p>}</section></div>; }
 function FinanceCards({stats,wallet}) { return <div style={{display:'grid',gap:16}}><div style={{padding:22,borderRadius:18,background:'#111',color:'#fff',display:'flex',justifyContent:'space-between',alignItems:'center',gap:16,flexWrap:'wrap'}}><div><small style={{opacity:.7}}>SOLDE DISPONIBLE À RETIRER</small><div style={{fontSize:30,fontWeight:900,marginTop:6}}>{money(wallet.balance)}</div><small style={{opacity:.72}}>Solde réel du portefeuille vendeur, après les commissions.</small></div><button style={{border:0,borderRadius:11,padding:'12px 16px',fontWeight:900,cursor:'pointer'}}>Retirer mes revenus</button></div>{Number(wallet.pending_balance||0)>0&&<div style={{padding:14,borderRadius:12,background:'#fff7ed',border:'1px solid #fed7aa'}}><b>Solde en attente : {money(wallet.pending_balance)}</b><div style={{marginTop:4,color:'#9a3412',fontSize:13}}>Ce montant n'est pas encore disponible au retrait.</div></div>}<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:12}}>{[['Ventes',stats.revenue,TrendingUp],['Commissions prélevées',stats.commission,Percent],['Revenus nets',stats.net,Wallet],['Ventes gratuites',stats.freeSales,Gift],['Commandes',stats.orders,ShoppingBag],['Unités vendues',stats.units,PackagePlus]].map(([label,value,Icon]) => <div key={label} style={{padding:16,border:'1px solid #e5e7eb',borderRadius:14,background:'#fff'}}><Icon size={18} /><small style={{display:'block',marginTop:5}}>{label}</small><strong>{label === 'Commandes' || label === 'Unités vendues' || label === 'Ventes gratuites' ? Number(value).toLocaleString('fr-FR') : money(value)}</strong></div>)}</div><div style={{padding:16,borderRadius:14,background:'#f5f7fa'}}><b>Analyse des produits et commissions</b><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:10,marginTop:12}}><div><small>Produits au catalogue</small><strong style={{display:'block',fontSize:22}}>{stats.productCount || 0}</strong></div><div><small>Commissions prélevées</small><strong style={{display:'block',fontSize:22}}>{money(stats.commission)}</strong></div><div><small>Ventes gratuites</small><strong style={{display:'block',fontSize:22}}>{Number(stats.freeSales||0).toLocaleString('fr-FR')}</strong></div></div><p style={{margin:'10px 0 0',color:'#667085'}}>Les ventes et commissions sont analysées séparément ; le solde disponible affiché en haut provient du portefeuille vendeur.</p></div></div>; }
 function Cards({stats,wallet}) { return <FinanceCards stats={stats} wallet={wallet} />; }
 function Dashboard({stats,products,wallet,loading,refresh}) { const data={...stats,productCount:products.length}; return <Simple title="Tableau de bord — Analyse" icon={<BarChart3 size={30} />}><button className="primary" onClick={refresh} style={{marginBottom:14}}><BarChart3 size={17} /> Actualiser les analyses</button>{loading ? <p>Chargement des analyses…</p> : <><Cards stats={data} wallet={wallet} /><div style={{marginTop:14,padding:14,borderRadius:12,background:'#f5f7fa'}}><b>{products.length}</b> produit(s) au catalogue.</div>{stats.orders === 0 ? <p style={{color:'#667085'}}>Aucune commande vendue pour le moment. Les analyses se rempliront automatiquement dès les premières ventes.</p> : null}</>}</Simple>; }
