@@ -41,8 +41,14 @@ export default function SellerDashboard({ session, shop, activeTab = 'dashboard'
       if (physical.error) throw physical.error;
       if (txResult.error) throw txResult.error;
       if (withdrawalResult.error) throw withdrawalResult.error;
-      setWallet(walletResult.data || { balance:0, pending_balance:0, currency:'XAF' });
-      setTransactions(txResult.data || []);
+      const ledger = txResult.data || [];
+      const ledgerBalance = ledger.reduce((sum, t) => {
+        if (!['completed','success','pending'].includes(String(t.status || '').toLowerCase())) return sum;
+        const amount = Number(t.amount || 0);
+        return sum + (['withdrawal','debit'].includes(String(t.type || '').toLowerCase()) ? -amount : ['credit','sale'].includes(String(t.type || '').toLowerCase()) ? amount : 0);
+      }, 0);
+      setWallet({ ...(walletResult.data || { pending_balance:0, currency:'XAF' }), balance:ledgerBalance });
+      setTransactions(ledger);
       setWithdrawals(withdrawalResult.data || []);
       setProducts([...(digital.data || []).map(p => ({ ...p, product_type:'digital' })), ...(physical.data || []).map(p => ({ ...p, product_type:'physical' }))]);
       try {
