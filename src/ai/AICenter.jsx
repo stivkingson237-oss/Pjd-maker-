@@ -3,6 +3,22 @@ import { aiHub } from './aiHub';
 import { supabase } from '../lib/supabase';
 import './ai-center.css';
 
+// Convertit le Markdown brut de l'IA en texte lisible dans le chat.
+function cleanAIText(value) {
+  return String(value ?? '')
+    .replace(/`{3}[a-zA-Z]*\\s*([\\s\\S]*?)`{3}/g, '$1')
+    .replace(/^\\s{0,3}#{1,6}\\s+/gm, '')
+    .replace(/\\*\\*(.*?)\\*\\*/gs, '$1')
+    .replace(/__(.*?)__/gs, '$1')
+    .replace(/(?<!\\*)\\*(?!\\s)([^*\\n]+?)\\*(?!\\*)/g, '$1')
+    .replace(/(?<!_)_([^_\\n]+?)_(?!_)/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/^\\s*[-*+]\\s+/gm, '• ')
+    .replace(/^\\s*\\d+[.)]\\s+/gm, '• ')
+    .replace(/[ \\t]+\\n/g, '\\n')
+    .replace(/\\n{3,}/g, '\\n\\n')
+    .trim();
+}
 const STARTERS = [
   'Que peux-tu faire pour moi sur PJD Market ?',
   'Analyse ma boutique et propose des actions pour augmenter mes ventes.',
@@ -134,9 +150,10 @@ export default function AICenter({ onClose }) {
         context
       });
 
-      const content = typeof result === 'string'
+      const rawContent = typeof result === 'string'
         ? result
         : (result?.response || result?.message || JSON.stringify(result, null, 2));
+      const content = cleanAIText(rawContent);
 
       setMessages(prev => [...prev, { role: 'assistant', content }]);
     } catch (e) {
