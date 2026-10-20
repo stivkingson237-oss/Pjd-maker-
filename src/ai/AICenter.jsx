@@ -6,19 +6,20 @@ import './ai-center.css';
 // Convertit le Markdown brut de l'IA en texte lisible dans le chat.
 function cleanAIText(value) {
   return String(value ?? '')
-    .replace(/`{3}[a-zA-Z]*\\s*([\\s\\S]*?)`{3}/g, '$1')
-    .replace(/^\\s{0,3}#{1,6}\\s+/gm, '')
-    .replace(/\\*\\*(.*?)\\*\\*/gs, '$1')
+    .replace(/\x60{3}[a-zA-Z]*\s*([\s\S]*?)\x60{3}/g, '$1')
+    .replace(/^\s{0,3}#{1,6}\s+/gm, '')
+    .replace(/\*\*(.*?)\*\*/gs, '$1')
     .replace(/__(.*?)__/gs, '$1')
-    .replace(/(?<!\\*)\\*(?!\\s)([^*\\n]+?)\\*(?!\\*)/g, '$1')
-    .replace(/(?<!_)_([^_\\n]+?)_(?!_)/g, '$1')
-    .replace(/`([^`]+)`/g, '$1')
-    .replace(/^\\s*[-*+]\\s+/gm, '• ')
-    .replace(/^\\s*\\d+[.)]\\s+/gm, '• ')
-    .replace(/[ \\t]+\\n/g, '\\n')
-    .replace(/\\n{3,}/g, '\\n\\n')
+    .replace(/(?<!\*)\*(?!\s)([^*\n]+?)\*(?!\*)/g, '$1')
+    .replace(/(?<!_)_([^_\n]+?)_(?!_)/g, '$1')
+    .replace(/\x60([^\x60]+)\x60/g, '$1')
+    .replace(/^\s*[-*+]\s+/gm, '• ')
+    .replace(/^\s*\d+[.)]\s+/gm, '• ')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
+
 const STARTERS = [
   'Que peux-tu faire pour moi sur PJD Market ?',
   'Analyse ma boutique et propose des actions pour augmenter mes ventes.',
