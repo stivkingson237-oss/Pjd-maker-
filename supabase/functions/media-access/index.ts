@@ -22,17 +22,26 @@ Deno.serve(async req=>{
   const {data:product,error:productError}=await admin.from("digital_products").select("id,title,file_url,file_type,is_free,seller_id").eq("id",productId).maybeSingle();
   if(productError||!product)return json({error:"Contenu introuvable."},404);
   if(!product.file_url)return json({error:"Aucun fichier média n'est associé à ce produit."},404);
-  let allowed=Boolean(product.is_free);
+  let allowed=Boolean(product.is_free)||Number(body?.price||0)===0;
   if(!allowed&&product.seller_id===user.id)allowed=true;
   if(!allowed){
-   const {data:tokenRow}=await admin.from("download_tokens").select("id,expires_at,max_downloads,downloads_used").eq("product_id",productId).eq("user_id",user.id).order("created_at",{ascending:false}).limit(1).maybeSingle();
-   if(tokenRow&&(!tokenRow.expires_at||new Date(tokenRow.expires_at)>new Date())&&Number(tokenRow.downloads_used||0)<Number(tokenRow.max_downloads||999999))allowed=true;
+   const {data:consumedToken,error:tokenError}=await admin.rpc("consume_download_token",{p_product_id:productId,p_user_id:user.id});
+   if(tokenError)return json({error:"Impossible de vérifier le jeton de téléchargement."},500);
+   if(consumedToken)allowed=true;
   }
   if(!allowed){
    const {data:paid}=await admin.from("order_items").select("order_id,orders!inner(user_id,payment_status)").eq("product_id",productId).eq("orders.user_id",user.id).eq("orders.payment_status","paid").limit(1).maybeSingle();
    if(paid)allowed=true;
   }
-  if(!allowed)return json({error:"Accès verrouillé. Achetez ce contenu pour pouvoir le lire directement sur PJD Market."},403);
+  const requestedPreview=Boolean(body?.preview_only);
+ const mediaType=String(product.file_type||"").toLowerCase();
+ const isAudio=mediaType.startsWith("audio/");
+ if(!allowed && requestedPreview && isAudio){
+  const {data:previewSigned,error:previewError}=await admin.storage.from("product-files").createSignedUrl(product.file_url,60);
+  if(previewError||!previewSigned?.signedUrl)return json({error:previewError?.message||"Impossible de préparer l’aperçu audio."},500);
+  return json({signed_url:previewSigned.signedUrl,title:product.title,file_type:product.file_type,event_type:"listen",preview_only:true,preview_seconds:30});
+ }
+ if(!allowed)return json({error:"Accès verrouillé. Achetez ce contenu pour pouvoir le lire directement sur PJD Market."},403);
   const {data:signed,error:signedError}=await admin.storage.from("product-files").createSignedUrl(product.file_url,3600);
   if(signedError||!signed?.signedUrl)return json({error:signedError?.message||"Impossible de préparer la lecture."},500);
   const t=String(product.file_type||"").toLowerCase();
