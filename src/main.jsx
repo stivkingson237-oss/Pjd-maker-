@@ -24,4 +24,70 @@ class AppErrorBoundary extends React.Component {
   }
 }
 function LoadingScreen() { return React.createElement('div', { style: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f7f8fa', color: '#111827', fontFamily: 'system-ui, sans-serif' } }, React.createElement('div', { style: { textAlign: 'center' } }, React.createElement('div', { style: { fontSize: 32, fontWeight: 900 } }, 'PJD Maker'), React.createElement('div', { style: { marginTop: 8, opacity: .7 } }, 'Chargement…'))); }
+
+// Keep every open PJD Market tab aligned with the latest production deployment.
+// Vercel serves index.html and version.json without cache; Vite assets are fingerprinted.
+function watchForPjdUpdates() {
+  if (typeof window === 'undefined' || window.__pjdUpdateWatcher) return;
+  window.__pjdUpdateWatcher = true;
+  let currentBuild = '';
+  let updateAvailable = false;
+  let notice = null;
+
+  const canReloadSafely = () => {
+    const active = document.activeElement;
+    const editing = active && /^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName);
+    const submitting = Boolean(document.querySelector('form [type="submit"]:disabled'));
+    const modalOpen = Boolean(document.querySelector('[role="dialog"], .modal.show, .modal-overlay'));
+    return !editing && !submitting && !modalOpen;
+  };
+
+  const showUpdateNotice = () => {
+    if (notice || !document.body) return;
+    notice = document.createElement('div');
+    notice.setAttribute('role', 'status');
+    notice.style.cssText = 'position:fixed;z-index:2147483647;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-radius:14px;background:#101b2d;color:#fff;box-shadow:0 8px 28px rgba(0,0,0,.25);font:600 13px system-ui';
+    const label = document.createElement('span');
+    label.textContent = 'Une nouvelle version de PJD Market est disponible.';
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = 'Actualiser';
+    button.style.cssText = 'border:0;border-radius:9px;padding:10px 13px;background:#f97316;color:white;font-weight:800;white-space:nowrap';
+    button.addEventListener('click', () => window.location.reload());
+    notice.append(label, button);
+    document.body.appendChild(notice);
+  };
+
+  const check = async () => {
+    try {
+      const response = await fetch('/version.json?check=' + Date.now(), { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } });
+      if (!response.ok) return;
+      const data = await response.json();
+      if (!data?.buildId) return;
+      if (!currentBuild) {
+        currentBuild = data.buildId;
+        return;
+      }
+      if (data.buildId !== currentBuild) {
+        updateAvailable = true;
+        if (canReloadSafely()) window.location.reload();
+        else showUpdateNotice();
+      }
+    } catch (_) {
+      // A temporary offline/mobile connection must not interrupt the app.
+    }
+  };
+
+  check();
+  window.setInterval(() => { if (updateAvailable && canReloadSafely()) window.location.reload(); else check(); }, 60000);
+  window.addEventListener('focus', () => { if (updateAvailable && canReloadSafely()) window.location.reload(); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      if (updateAvailable && canReloadSafely()) window.location.reload();
+      else check();
+    }
+  });
+}
+watchForPjdUpdates();
+
 createRoot(document.getElementById('root')).render(React.createElement(React.StrictMode, null, React.createElement(AppErrorBoundary, null, React.createElement(Suspense, { fallback: React.createElement(LoadingScreen) }, React.createElement(React.Fragment, null, React.createElement(App), React.createElement(PaymentConfirmationOverlay))))));
