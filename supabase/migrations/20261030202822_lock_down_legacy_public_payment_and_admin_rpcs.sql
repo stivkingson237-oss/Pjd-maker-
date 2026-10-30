@@ -1,17 +1,16 @@
--- Lock down privileged RPCs that must not be callable by anonymous clients.
+-- Remove anonymous execution from internal/privileged RPCs.
 revoke all on function public.doge_confirm_payment(text,text) from public, anon, authenticated;
 grant execute on function public.doge_confirm_payment(text,text) to service_role;
 revoke all on function public.enforce_seller_product_plan_limits() from public, anon, authenticated;
-
-revoke execute on function public.get_pjd_admin_prospects() from public, anon;
-grant execute on function public.get_pjd_admin_prospects() to authenticated;
-revoke execute on function public.publish_pjd_bot_product(uuid) from public, anon;
-grant execute on function public.publish_pjd_bot_product(uuid) to authenticated;
-revoke execute on function public.send_pjd_admin_prospect_invite(uuid,text) from public, anon;
-grant execute on function public.send_pjd_admin_prospect_invite(uuid,text) to authenticated;
+revoke execute on function public.get_pjd_admin_prospects() from anon;
+revoke execute on function public.publish_pjd_bot_product(uuid) from anon;
+revoke execute on function public.send_pjd_admin_prospect_invite(uuid,text) from anon;
 
 create or replace function public.get_pjd_download_stats()
-returns jsonb language plpgsql security definer set search_path = ''
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
 as $$
 declare caller_role text; result jsonb;
 begin
@@ -25,13 +24,15 @@ begin
     'listens_total',(select count(*) from public.pjd_content_events where event_type='listen'),
     'listens_people',(select count(distinct coalesce(user_id::text,visitor_id)) from public.pjd_content_events where event_type='listen'),
     'products',coalesce((
-      select jsonb_agg(jsonb_build_object('id',p.id,'title',p.title,'people',coalesce(e.people,0),
+      select jsonb_agg(jsonb_build_object(
+        'id',p.id,'title',p.title,'people',coalesce(e.people,0),
         'downloads',coalesce(e.downloads,0),'listens',coalesce(e.listens,0),
-        'stored_downloads',coalesce(p.downloads,0))
-        order by greatest(coalesce(e.downloads,0),coalesce(p.downloads,0)) desc,p.created_at desc)
+        'stored_downloads',coalesce(p.downloads,0)
+      ) order by greatest(coalesce(e.downloads,0),coalesce(p.downloads,0)) desc,p.created_at desc)
       from public.digital_products p
       left join (
-        select product_id,count(*) filter(where event_type='download') downloads,
+        select product_id,
+          count(*) filter(where event_type='download') downloads,
           count(distinct coalesce(user_id::text,visitor_id)) filter(where event_type='download') people,
           count(*) filter(where event_type='listen') listens
         from public.pjd_content_events group by product_id
@@ -42,5 +43,4 @@ begin
   return result;
 end;
 $$;
-revoke execute on function public.get_pjd_download_stats() from public, anon;
-grant execute on function public.get_pjd_download_stats() to authenticated;
+revoke execute on function public.get_pjd_download_stats() from anon;
