@@ -64,17 +64,25 @@ async function verifySignature(req: Request, raw: string) {
 function extract(value: any, depth = 0): any {
   if (!value || typeof value !== "object" || depth > 8) return {};
   const result: any = {};
-  const keys = ["id", "payment_id", "paymentId", "transaction_id", "transactionId", "tx_id",
+  const idKeys = ["payment_id", "paymentId", "transaction_id", "transactionId", "tx_id",
     "reference", "transaction_reference", "transactionReference", "external_reference",
-    "externalReference", "status", "payment_status", "transaction_status", "state",
-    "amount", "paid_amount", "currency"];
-  for (const key of keys) if (value[key] != null && typeof value[key] !== "object") result[key] = value[key];
-  if (result.id || result.payment_id || result.paymentId || result.transaction_id ||
-      result.transactionId || result.tx_id || result.reference || result.transaction_reference ||
-      result.transactionReference || result.external_reference || result.externalReference) return result;
+    "externalReference", "id"];
+  const statusKeys = ["status", "payment_status", "transaction_status", "state", "result", "payment_state"];
+  for (const key of idKeys) {
+    if (value[key] != null && typeof value[key] !== "object") { result.id = value[key]; break; }
+  }
+  for (const key of statusKeys) {
+    if (value[key] != null && typeof value[key] !== "object") { result.status = value[key]; break; }
+  }
+  for (const key of ["amount", "requested_amount", "paid_amount"]) {
+    if (value[key] != null && Number(value[key]) > 0) { result.amount = value[key]; break; }
+  }
+  if (value.currency != null && typeof value.currency !== "object") result.currency = value.currency;
   for (const child of Object.values(value)) {
     const nested = extract(child, depth + 1);
-    if (Object.keys(nested).length) return nested;
+    for (const [key, childValue] of Object.entries(nested)) {
+      if (result[key] == null) result[key] = childValue;
+    }
   }
   return result;
 }
