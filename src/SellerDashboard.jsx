@@ -39,6 +39,7 @@ export default function SellerDashboard({ session, shop, activeTab = 'dashboard'
       ]);
       if (digital.error) throw digital.error;
       if (physical.error) throw physical.error;
+      if (walletResult.error) throw walletResult.error;
       if (txResult.error) throw txResult.error;
       if (withdrawalResult.error) throw withdrawalResult.error;
       const ledger = txResult.data || [];
