@@ -2,7 +2,7 @@ import React,{useEffect,useMemo,useState}from'react';
 import{BarChart3,Eye,ShoppingBag,Users,Lightbulb,RefreshCw,Loader2}from'lucide-react';
 import{supabase}from'./lib/supabase';
 const money=v=>`${Number(v||0).toLocaleString('fr-FR')} FCFA`;
-const validStatus=s=>!['cancelled','canceled','refunded','failed'].includes(String(s||'').toLowerCase());
+const validStatus=s=>['paid','confirmed','processing','shipped','delivered'].includes(String(s||'').toLowerCase());
 export default function SellerAnalytics({session,shop,onBack}){
  const[data,setData]=useState({orders:[],items:[],views:[],users:[]});const[loading,setLoading]=useState(true);const[message,setMessage]=useState('');
  const load=async()=>{if(!session?.user?.id)return;setLoading(true);setMessage('');const uid=session.user.id;
