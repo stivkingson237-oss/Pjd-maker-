@@ -60,12 +60,14 @@ Deno.serve(async req => {
     // Notch Pay's webhook documentation does not require an HMAC signature header.
     // Treat the webhook as a notification only and always verify the transaction
     // server-to-server with the merchant API key before changing PJD Market state.
-    if (lookupId && NOTCHPAY_API_KEY) {
-      const rr = await fetch("https://api.notchpay.co/payments/"+encodeURIComponent(lookupId), {headers:{Authorization:NOTCHPAY_API_KEY,Accept:"application/json"}});
-      if (rr.ok) {
-        const t = await rr.json();
-        authoritative = t?.transaction || t?.data?.transaction || t?.payment || t?.data || t;
-      }
+    if (!NOTCHPAY_API_KEY) return json({ error: "Vérification marchande Notch Pay indisponible." }, 503);
+    if (!lookupId) return json({ received: true, processed: false, reason: "provider_reference_missing" }, 202);
+    const verifyResponse = await fetch("https://api.notchpay.co/payments/"+encodeURIComponent(lookupId), {headers:{Authorization:NOTCHPAY_API_KEY,Accept:"application/json"}});
+    if (!verifyResponse.ok) return json({ received: true, processed: false, reason: "provider_verification_unavailable" }, 202);
+    const verifiedPayload = await verifyResponse.json();
+    authoritative = verifiedPayload?.transaction || verifiedPayload?.data?.transaction || verifiedPayload?.payment || verifiedPayload?.data || verifiedPayload;
+    if (!authoritative || typeof authoritative !== "object" || !authoritative.status) {
+      return json({ received: true, processed: false, reason: "provider_transaction_unverified" }, 202);
     }
     const providerReference = first(authoritative?.reference, authoritative?.trxref, data?.reference, transaction?.reference, reference);
     const canonicalReference = providerReference;
@@ -93,26 +95,19 @@ Deno.serve(async req => {
     }
     if (!payment) return json({ received: true, ignored: true, reason: "payment_not_found" });
 
-    const amount = Number(data?.amount ?? transaction?.amount);
-    const currency = String(data?.currency ?? transaction?.currency ?? "XAF").toUpperCase();
-    if (Number.isFinite(amount) && Math.round(amount) !== Math.round(Number(payment.amount))) {
-      return json({ error: "Montant webhook différent du montant PJD Market." }, 400);
+    // Amount and currency must come from the provider's authenticated API
+    // response, never from the caller-controlled webhook payload.
+    const amount = Number(authoritative?.amount ?? authoritative?.payment?.amount);
+    const currency = String(authoritative?.currency ?? authoritative?.payment?.currency ?? "").toUpperCase();
+    if (!Number.isFinite(amount) || Math.round(amount) !== Math.round(Number(payment.amount))) {
+      return json({ error: "Montant confirmé par Notch Pay absent ou différent du montant PJD Market." }, 400);
     }
-    if (currency !== "XAF") return json({ error: "Devise webhook inattendue." }, 400);
+    if (currency !== "XAF") return json({ error: "Devise confirmée par Notch Pay absente ou inattendue." }, 400);
 
-    const providerStatus = String(
-      authoritative?.status ??
-      authoritative?.payment?.status ??
-      data?.status ??
-      transaction?.status ??
-      event?.status ??
-      ""
-    ).toLowerCase();
+    const providerStatus = String(authoritative?.status ?? authoritative?.payment?.status ?? "").toLowerCase();
     const successStatuses = new Set(["complete","completed","paid","success","successful","succeeded","confirmed"]);
-    const successEvents = new Set(["payment.complete", "payment.completed", "payment.success", "payment.succeeded", "transaction.complete", "transaction.completed", "transaction.success", "transaction.succeeded"]);
-    const failedEvents = new Set(["payment.failed", "payment.failure", "payment.canceled", "payment.cancelled", "payment.expired", "transaction.failed", "transaction.failure", "transaction.canceled", "transaction.cancelled", "transaction.expired"]);
 
-    if (successEvents.has(type) || successStatuses.has(providerStatus)) {
+    if (successStatuses.has(providerStatus)) {
       const update = await supabase.from("payments").update({
         status: "completed", statut: "payé",
         provider_reference: payment.provider_reference || canonicalReference || null,
@@ -135,7 +130,7 @@ Deno.serve(async req => {
     }
 
     const failedStatuses = new Set(["failed","failure","canceled","cancelled","expired","declined","rejected"]);
-    if (failedEvents.has(type) || failedStatuses.has(providerStatus)) {
+    if (failedStatuses.has(providerStatus)) {
       if (String(payment.status).toLowerCase() === "completed") {
         return json({ received: true, processed: false, ignored: true, reason: "already_completed" });
       }
