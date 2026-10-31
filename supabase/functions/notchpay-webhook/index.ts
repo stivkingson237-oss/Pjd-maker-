@@ -106,8 +106,6 @@ Deno.serve(async req => {
 
     const providerStatus = String(authoritative?.status ?? authoritative?.payment?.status ?? "").toLowerCase();
     const successStatuses = new Set(["complete","completed","paid","success","successful","succeeded","confirmed"]);
-    const successEvents = new Set(["payment.complete", "payment.completed", "payment.success", "payment.succeeded", "transaction.complete", "transaction.completed", "transaction.success", "transaction.succeeded"]);
-    const failedEvents = new Set(["payment.failed", "payment.failure", "payment.canceled", "payment.cancelled", "payment.expired", "transaction.failed", "transaction.failure", "transaction.canceled", "transaction.cancelled", "transaction.expired"]);
 
     if (successStatuses.has(providerStatus)) {
       const update = await supabase.from("payments").update({
