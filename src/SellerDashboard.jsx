@@ -42,12 +42,9 @@ export default function SellerDashboard({ session, shop, activeTab = 'dashboard'
       if (txResult.error) throw txResult.error;
       if (withdrawalResult.error) throw withdrawalResult.error;
       const ledger = txResult.data || [];
-      const ledgerBalance = ledger.reduce((sum, t) => {
-        if (!['completed','success','pending'].includes(String(t.status || '').toLowerCase())) return sum;
-        const amount = Number(t.amount || 0);
-        return sum + (['withdrawal','debit'].includes(String(t.type || '').toLowerCase()) ? -amount : ['credit','sale'].includes(String(t.type || '').toLowerCase()) ? amount : 0);
-      }, 0);
-      setWallet({ ...(walletResult.data || { pending_balance:0, currency:'XAF' }), balance:ledgerBalance });
+      // The wallet row is the authoritative available balance. Pending ledger
+      // entries must never be treated as spendable funds in the browser.
+      setWallet({ ...(walletResult.data || { balance:0, pending_balance:0, currency:'XAF' }), balance:Number(walletResult.data?.balance || 0), pending_balance:Number(walletResult.data?.pending_balance || 0) });
       setTransactions(ledger);
       setWithdrawals(withdrawalResult.data || []);
       setProducts([...(digital.data || []).map(p => ({ ...p, product_type:'digital' })), ...(physical.data || []).map(p => ({ ...p, product_type:'physical' }))]);
