@@ -22,7 +22,7 @@ Deno.serve(async req=>{
   const {data:product,error:productError}=await admin.from("digital_products").select("id,title,file_url,file_type,is_free,seller_id").eq("id",productId).maybeSingle();
   if(productError||!product)return json({error:"Contenu introuvable."},404);
   if(!product.file_url)return json({error:"Aucun fichier média n'est associé à ce produit."},404);
-  let allowed=Boolean(product.is_free)||Number(body?.price||0)===0;
+  // Free access must be determined from the trusted database row only. Never trust a client-supplied price.\n  let allowed=Boolean(product.is_free)||Number(product.price||0)===0;
   if(!allowed&&product.seller_id===user.id)allowed=true;
   if(!allowed){
    const {data:consumedToken,error:tokenError}=await admin.rpc("consume_download_token",{p_product_id:productId,p_user_id:user.id});
